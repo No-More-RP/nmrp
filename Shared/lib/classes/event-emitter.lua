@@ -111,7 +111,7 @@ end
 --- bus:remove_all_listeners("player:ready"); -- one event
 --- bus:remove_all_listeners();               -- everything
 --- ```
----@param event? string
+---@param event string?
 ---@return void
 function EventEmitter:remove_all_listeners(event)
     if (event) then

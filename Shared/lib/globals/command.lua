@@ -81,8 +81,8 @@ end
 --- parses them, and calls the user callback with a single CommandContext. On the client
 --- a non-local command is forwarded to the server instead of run here.
 ---@param name string The command name
----@param callback? CommandCallback The callback invoked with the command context
----@param client? boolean Whether the command runs locally on the client
+---@param callback CommandCallback? The callback invoked with the command context
+---@param client boolean? Whether the command runs locally on the client
 ---@return fun(player: Player|nil, args: string[]): void
 local function make_command_callback(name, callback, client)
     return function(player, args)
@@ -108,9 +108,9 @@ end
 
 ---@param name string The command name
 ---@param callback CommandCallback The callback to be called when the command is inputted
----@param description? string The command description to display in the console (Default: "")
----@param parameters? CommandArgument[] The list of command arguments (Default: {})
----@param client? boolean Whether the command callback runs locally on the client (Default: false)
+---@param description string? The command description to display in the console (Default: "")
+---@param parameters CommandArgument[]? The list of command arguments (Default: {})
+---@param client boolean? Whether the command callback runs locally on the client (Default: false)
 ---@return void
 local function register_command(name, callback, description, parameters, client)
     local command <const> = {

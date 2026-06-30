@@ -163,10 +163,11 @@ function ParallelHook:__init() Hook.__init(self); end
 --- ```lua
 --- loaders:call(player); -- every tap's promise is awaited together
 --- ```
+---@async
 ---@vararg any
 ---@return void
 function ParallelHook:call(...)
-    local promises <const> = {};
+    local promises <const> = {}; ---@type Promise[]
     for i = 1, #self._taps do
         local promise <const> = self._taps[i](...);
         if (promise ~= nil) then promises[#promises + 1] = promise; end

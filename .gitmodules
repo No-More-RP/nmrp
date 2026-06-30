@@ -1,0 +1,3 @@
+[submodule "Shared/lib/class"]
+	path = Shared/lib/class
+	url = https://github.com/JustGodWork/light-class.git

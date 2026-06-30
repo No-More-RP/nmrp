@@ -59,7 +59,8 @@ local loader <const> = make_loader(ctx);
 
 -- Register features here. Adding a job/faction later = one line + its module folder.
 local player_module <const>  = require 'modules/player/player.module.lua';   ---@type AppModule
+local economy_module <const> = require 'modules/economy/economy.module.lua'; ---@type AppModule
 
-CreateThread(loader.boot, player_module);
+CreateThread(loader.boot, player_module, economy_module);
 
 return ctx;

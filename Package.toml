@@ -19,11 +19,12 @@
     compatibility_version = "1.143"
     # packages requirements
     packages_requirements = [
-                            "norm-nanos",
                             "default-weapons",
                             "default-vehicles",
-                            "events-rpc",
-                            "nanos-locale",
+                            "nmrp-promise",
+                            "nmrp-norm",
+                            "nmrp-rpc",
+                            "nmrp-locale",
     ]
     # asset packs requirements
     assets_requirements = [

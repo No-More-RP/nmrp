@@ -10,8 +10,6 @@
 --- and 'modules/...' paths below are correct. require()'s return type can't be
 --- inferred through the mandatory ".lua", so each one is typed by hand.
 
-require 'player.lua'; -- installs the Player:Create / index / newindex extensions
-
 local settings <const> = Server.GetCustomSettings(); ---@type table<string, ServerSetting>
 local make_loader <const>  = require 'core/loader.lua'; ---@type fun(ctx: AppContext): Loader
 local events <const> = require 'core/emitter.lua'; ---@type EventEmitter

@@ -73,9 +73,10 @@ return function(models)
     --- local player_data <const>, character_data <const> =
     ---     store.load(player, player:GetAccountID(), { model = "SK_Mannequin" });
     --- ```
+    ---@async
     ---@param player Player
     ---@param account_id string
-    ---@param defaults? table<string, any>
+    ---@param defaults table<string, any>?
     ---@return NormRecord player_data, NormRecord character_data
     function store.load(player, account_id, defaults)
         local player_data <const> = Players:find_or_create({ accountId = account_id }):await();
@@ -114,6 +115,7 @@ return function(models)
     --- ```lua
     --- store.save(player);
     --- ```
+    ---@async
     ---@param player Player
     function store.save(player)
         local entry <const> = online[player];
@@ -132,6 +134,7 @@ return function(models)
     --- ```lua
     --- local n <const> = store.save_all(); -- e.g. 12
     --- ```
+    ---@async
     ---@return integer count
     function store.save_all()
         local promises <const> = {}; ---@type NormPromise[]
@@ -151,6 +154,7 @@ return function(models)
     --- ```lua
     --- store.release(player);
     --- ```
+    ---@async
     ---@param player Player
     function store.release(player)
         local entry <const> = online[player];

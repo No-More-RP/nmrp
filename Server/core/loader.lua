@@ -34,7 +34,7 @@
 return function(ctx)
     local loader <const> = {};
     local modules <const> = {}; ---@type table<string, AppModule> name -> descriptor
-    local order <const> = {};   ---@type string[]               registration order (tie-break)
+    local order <const> = {};   ---@type string[] registration order (tie-break)
 
     --- Register a module descriptor. Duplicates are a hard error.
     ---
@@ -89,6 +89,7 @@ return function(ctx)
     --- ```lua
     --- loader.boot(player_module, money_module, stamina_module);
     --- ```
+    ---@async
     ---@vararg AppModule
     ---@return AppContext ctx
     function loader.boot(...)

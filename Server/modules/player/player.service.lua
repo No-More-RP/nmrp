@@ -16,7 +16,7 @@ local hooks <const> = require 'lib/classes/hook.lua'; ---@type HookModule
 ---@field store PlayerStore
 ---@field on_loading fun(fn: fun(player: Player, player_data: NormRecord, character_data: NormRecord)): PlayerService
 ---@field on_releasing fun(fn: fun(player: Player)): PlayerService
----@field load fun(player: Player, defaults?: table): NormRecord, NormRecord
+---@field load fun(player: Player, defaults: table?): NormRecord, NormRecord
 ---@field release fun(player: Player): void
 ---@field save_all fun(): integer
 
@@ -34,6 +34,17 @@ return function(ctx)
 
     local loading <const> = hooks.Hook();   -- taps: (player, player_data, character_data)
     local releasing <const> = hooks.Hook(); -- taps: (player)
+
+    -- Dev mode: offline instances all connect with the SAME accountId, so suffix it with
+    -- the per-connection entity id (player:GetID()) to give each instance its own players
+    -- row. Prod uses the real accountId unchanged (it is already globally unique).
+    local is_dev <const> = ctx.settings.mode == "development";
+
+    -- The DB identity key for a player (see is_dev above).
+    local function account_key(player)
+        if (is_dev) then return player:GetAccountID() .. ":" .. player:GetID(); end
+        return player:GetAccountID();
+    end
 
     local service <const> = {}; ---@type PlayerService
     service.store = store; -- exposed for modules that want the cached records directly
@@ -61,11 +72,12 @@ return function(ctx)
     --- ```lua
     --- local player_data <const>, character_data <const> = players.load(player, { model = mesh });
     --- ```
+    ---@async
     ---@param player Player
-    ---@param defaults? table Seed values for the character row on first creation
+    ---@param defaults table? Seed values for the character row on first creation
     ---@return NormRecord player_data, NormRecord character_data
     function service.load(player, defaults)
-        local player_data <const>, character_data <const> = store.load(player, player:GetAccountID(), defaults);
+        local player_data <const>, character_data <const> = store.load(player, account_key(player), defaults);
         player.db_id = player_data.id;
         loading:call(player, player_data, character_data); -- awaited: all per-player data ready
         player:Create();
@@ -78,6 +90,7 @@ return function(ctx)
     --- ```lua
     --- players.release(player); -- on disconnect
     --- ```
+    ---@async
     ---@param player Player
     function service.release(player)
         releasing:call(player); -- awaited: modules persist before we drop the cache
@@ -89,6 +102,7 @@ return function(ctx)
     --- ```lua
     --- local n <const> = players.save_all(); -- e.g. 12
     --- ```
+    ---@async
     ---@return integer
     function service.save_all() return store.save_all(); end
 

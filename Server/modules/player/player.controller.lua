@@ -17,6 +17,7 @@ return function(ctx)
     --- ```lua
     --- spawn(player);
     --- ```
+    ---@async
     ---@param player Player
     local function spawn(player)
         local spawn_point <const> = spawn_points[math.random(1, #spawn_points)];

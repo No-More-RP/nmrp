@@ -1,0 +1,41 @@
+# vault configurations
+[meta]
+    # friendly name
+    title =                 "NMRP (No More RP)"
+    # contributors
+    author =                "JustGodWork"
+    # version
+    version =               "0.0.1"
+
+# game-mode configurations
+[game_mode]
+    # whether to force the custom map package to do not load
+    force_no_map_package =  false
+    # auto destroy all entities spawned by this package when it unloads
+    auto_cleanup =          true
+    # whether to load all level entities on client - only enable it if your package needs to use level static meshes entities
+    load_level_entities =   false
+    # the game version (major.minor) at the time this package was created, for granting compatibility between breaking changes
+    compatibility_version = "1.143"
+    # packages requirements
+    packages_requirements = [
+                            "norm-nanos",
+                            "default-weapons",
+                            "default-vehicles",
+                            "events-rpc",
+                            "nanos-locale",
+    ]
+    # asset packs requirements
+    assets_requirements = [
+
+    ]
+    # compatible maps - maps to be highlighted when starting a new game through main menu
+    compatible_maps = [
+
+    ]
+
+# game-mode custom settings configurations
+# those settings can be configured through new game menu, Config.toml and server command line
+# and can be accessed through Server.GetCustomSettings() method from any package
+[custom_settings]
+    database_connection = { label = "Database", type = "text", description = "Database connection string", default = "db=nmrp user=root host=127.0.0.1 port=3307" }

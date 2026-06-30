@@ -10,6 +10,7 @@
 return function(ctx)
     local players <const> = ctx.services.player; ---@type PlayerService
     local spawn_points <const> = Server.GetMapSpawnPoints();
+    local fallback_spawn_point <const> = { location = Vector(0, 0, 300), rotation = Rotator(0, 0, 0) };
 
     --- Create the pawn, load/cache the player's data (runs module loading hooks),
     --- restore world state, possess. Coroutine-only (load awaits).
@@ -20,7 +21,7 @@ return function(ctx)
     ---@async
     ---@param player Player
     local function spawn(player)
-        local spawn_point <const> = spawn_points[math.random(1, #spawn_points)];
+        local spawn_point <const> = #spawn_points > 0 and spawn_points[math.random(1, #spawn_points)] or fallback_spawn_point;
         local location <const>, rotation <const> = spawn_point.location, spawn_point.rotation;
         local character <const> = Character(location, rotation);
         local _, character_data <const> = players.load(player, {

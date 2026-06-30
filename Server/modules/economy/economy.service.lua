@@ -28,12 +28,12 @@
 ---@field cash fun(player: Player): integer
 ---@field cash_account fun(player: Player): NormRecord|nil
 ---@field accounts_of fun(owner_type: string, owner_id: integer): NormRecord[]
----@field open_account fun(owner_type: string, owner_id: integer, account_type: string, label?: string): NormRecord
----@field balance fun(account: NormRecord): integer
----@field deposit fun(account: NormRecord, amount: integer, opts?: TxOptions): integer
----@field withdraw fun(account: NormRecord, amount: integer, opts?: TxOptions): boolean
----@field transfer fun(from: NormRecord, to: NormRecord, amount: integer, opts?: TxOptions): boolean
----@field history fun(account: NormRecord, limit?: integer): NormRecord[]
+---@field open_account fun(owner_type: string, owner_id: integer, account_type: string, label: string?): NormRecord
+---@field balance fun(account: NormRecord?): integer
+---@field deposit fun(account: NormRecord, amount: integer, opts: TxOptions?): integer
+---@field withdraw fun(account: NormRecord, amount: integer, opts: TxOptions?): boolean
+---@field transfer fun(from: NormRecord, to: NormRecord, amount: integer, opts: TxOptions?): boolean
+---@field history fun(account: NormRecord, limit: integer?): NormRecord[]
 ---@field flush fun(): integer
 
 --- Build the economy service.
@@ -117,6 +117,7 @@ return function(ctx)
     --- ```lua
     --- local accounts <const> = economy.accounts_of("character", character.id);
     --- ```
+    ---@async
     ---@param owner_type string
     ---@param owner_id integer
     ---@return NormRecord[]
@@ -129,10 +130,11 @@ return function(ctx)
     --- ```lua
     --- local savings <const> = economy.open_account("character", character.id, "savings", "Main savings");
     --- ```
+    ---@async
     ---@param owner_type string
     ---@param owner_id integer
     ---@param account_type string
-    ---@param label? string
+    ---@param label string?
     ---@return NormRecord
     function service.open_account(owner_type, owner_id, account_type, label)
         return Accounts:create({
@@ -152,7 +154,7 @@ return function(ctx)
     --- ```
     ---@param account NormRecord
     ---@param amount integer
-    ---@param opts? TxOptions
+    ---@param opts TxOptions?
     ---@return integer balance
     function service.deposit(account, amount, opts)
         assert(amount >= 0, "economy.deposit: amount must be >= 0");
@@ -169,7 +171,7 @@ return function(ctx)
     --- ```
     ---@param account NormRecord
     ---@param amount integer
-    ---@param opts? TxOptions
+    ---@param opts TxOptions?
     ---@return boolean ok
     function service.withdraw(account, amount, opts)
         assert(amount >= 0, "economy.withdraw: amount must be >= 0");
@@ -189,7 +191,7 @@ return function(ctx)
     ---@param from NormRecord
     ---@param to NormRecord
     ---@param amount integer
-    ---@param opts? TxOptions
+    ---@param opts TxOptions?
     ---@return boolean ok
     function service.transfer(from, to, amount, opts)
         assert(amount >= 0, "economy.transfer: amount must be >= 0");
@@ -208,8 +210,9 @@ return function(ctx)
     --- ```lua
     --- local rows <const> = economy.history(account, 10);
     --- ```
+    ---@async
     ---@param account NormRecord
-    ---@param limit? integer
+    ---@param limit integer?
     ---@return NormRecord[]
     function service.history(account, limit)
         return Transactions:where("account_id", "=", account.id):order("id", "DESC"):limit(limit or 20):all():await();
@@ -223,6 +226,7 @@ return function(ctx)
     --- ```lua
     --- economy.flush(); -- force durability after a critical operation
     --- ```
+    ---@async
     ---@return integer written
     function service.flush()
         if (next(dirty) == nil and pending_tx[1] == nil) then return 0; end

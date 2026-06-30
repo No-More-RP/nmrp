@@ -33,7 +33,7 @@ return function(ctx)
     --- player:GiveCash(500, { reason = "salary" });
     --- ```
     ---@param amount integer
-    ---@param opts? TxOptions
+    ---@param opts TxOptions?
     ---@return integer balance
     function Player:GiveCash(amount, opts)
         local account <const> = economy.cash_account(self);
@@ -46,7 +46,7 @@ return function(ctx)
     --- if (player:TakeCash(250, { reason = "shop" })) then give_item(); end
     --- ```
     ---@param amount integer
-    ---@param opts? TxOptions
+    ---@param opts TxOptions?
     ---@return boolean ok
     function Player:TakeCash(amount, opts)
         local account <const> = economy.cash_account(self);
@@ -60,7 +60,7 @@ return function(ctx)
     --- ```
     ---@param target Player
     ---@param amount integer
-    ---@param opts? TxOptions
+    ---@param opts TxOptions?
     ---@return boolean ok
     function Player:PayCash(target, amount, opts)
         local from <const>, to <const> = economy.cash_account(self), economy.cash_account(target);
@@ -74,7 +74,7 @@ return function(ctx)
     --- local rows <const> = player:CashHistory(10);
     --- ```
     ---@async
-    ---@param limit? integer
+    ---@param limit integer?
     ---@return NormRecord[]
     function Player:CashHistory(limit)
         local account <const> = economy.cash_account(self);

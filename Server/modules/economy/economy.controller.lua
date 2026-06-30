@@ -6,11 +6,15 @@
 --- ```lua
 --- require 'economy.controller.lua' (ctx);
 --- ```
+-- Required at file top-level (main thread): nanos `require` does NOT work inside a
+-- coroutine, and the controller body runs inside loader.boot's coroutine.
+local install_player <const> = require 'economy.player.lua'; ---@type fun(ctx: AppContext): void
+
 ---@param ctx AppContext
 return function(ctx)
     local economy <const> = ctx.services.economy; ---@type EconomyService
 
-    require 'economy.player.lua' (ctx); -- install Player:GetCash / GiveCash / TakeCash / ...
+    install_player(ctx); -- install Player:GetCash / GiveCash / TakeCash / ...
 
     -- Write-behind: persist buffered balances + ledger rows on an interval and on
     -- shutdown. A shorter window means less lost on a crash (money flushes faster than

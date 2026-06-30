@@ -40,3 +40,4 @@
 # and can be accessed through Server.GetCustomSettings() method from any package
 [custom_settings]
     database_connection = { label = "Database", type = "text", description = "Database connection string", default = "db=nmrp user=root host=127.0.0.1 port=3307" }
+    mode = { label = "Mode", type = "select", description = "Environment mode", options = [ "development", "production" ], default = "development" }

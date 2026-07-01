@@ -20,8 +20,10 @@
 ---
 ---@alias ServerSetting { label: string, type: 'boolean' | 'text' | 'floating' | 'integer' | 'select', default: any, description?: string } | string
 ---@alias AppModule { name: string, depends?: string[], models?: fun(db: NormOrm): any, service?: fun(ctx: AppContext): any, controller?: fun(ctx: AppContext): void }
----@alias AppContext { db: NormOrm, models: table<string, any>, services: table<string, any>, config: table, events: EventEmitter, settings: table<string, ServerSetting> }
+---@alias AppContext { db: NormOrm, models: table<string, any>, services: table<string, any>, config: table, events: EventEmitter, settings: table<string, ServerSetting>, logger: Logger }
 ---@alias Loader { boot: fun(...: AppModule): AppContext }
+
+local ansi <const> = require 'lib/constants/ansi.lua'; ---@type Ansi
 
 --- Build a loader bound to an app context.
 ---
@@ -35,6 +37,7 @@ return function(ctx)
     local loader <const> = {};
     local modules <const> = {}; ---@type table<string, AppModule> name -> descriptor
     local order <const> = {};   ---@type string[] registration order (tie-break)
+    local logger <const> = ctx.logger:child('Loader');
 
     --- Register a module descriptor. Duplicates are a hard error.
     ---
@@ -114,7 +117,7 @@ return function(ctx)
 
         ctx.db:sync():await();
 
-        Console.Log("[nmrp] loader: booted %d module(s)", #sorted);
+        logger:info("booted %s%d%s module(s)", ansi.GREEN, #sorted, ansi.RESET);
         return ctx;
     end
 

@@ -1,6 +1,16 @@
 local setTimeout <const> = Timer.SetTimeout;
 local assert <const> = assert;
 
+--- Resume a coroutine and log any errors that occur.
+---@param thread thread The coroutine to resume
+---@vararg any The arguments to pass to the coroutine when resuming
+local function resume_thread(thread, ...)
+    local success <const>, err <const> = coroutine.resume(thread, ...);
+    if (not success) then
+        logger:error("thread failed: " .. tostring(err));
+    end
+end
+
 --- Creates a new coroutine and runs the specified function in it.
 ---
 --- ```lua
@@ -10,7 +20,7 @@ local assert <const> = assert;
 ---@vararg any The arguments to pass to the function when it is called
 function CreateThread(fn, ...)
     local thread <const> = coroutine.create(fn);
-    coroutine.resume(thread, ...);
+    resume_thread(thread, ...);
     return thread;
 end
 
@@ -27,7 +37,7 @@ function Wait(ms)
     assert(thread, "Wait: must be called from a coroutine");
     assert(not is_main_thread, "Wait: cannot be called from the main thread");
     setTimeout(function()
-        coroutine.resume(thread);
+        resume_thread(thread);
     end, ms);
     coroutine.yield();
 end

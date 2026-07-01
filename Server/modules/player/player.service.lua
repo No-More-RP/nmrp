@@ -13,6 +13,7 @@ local make_store <const> = require 'player.store.lua'; ---@type fun(models: Play
 local hooks <const> = require 'lib/classes/hook.lua'; ---@type HookModule
 
 ---@class PlayerService
+---@field logger Logger
 ---@field store PlayerStore
 ---@field on_loading fun(fn: fun(player: Player, player_data: NormRecord, character_data: NormRecord)): PlayerService
 ---@field on_releasing fun(fn: fun(player: Player)): PlayerService
@@ -31,6 +32,7 @@ return function(ctx)
     local models <const> = ctx.models.player; ---@type PlayerModels
     local events <const> = ctx.events;
     local store <const> = make_store({ players = models.players, characters = models.characters });
+    local logger <const> = ctx.logger:child('Player');
 
     local loading <const> = hooks.Hook();   -- taps: (player, player_data, character_data)
     local releasing <const> = hooks.Hook(); -- taps: (player)
@@ -48,6 +50,7 @@ return function(ctx)
 
     local service <const> = {}; ---@type PlayerService
     service.store = store; -- exposed for modules that want the cached records directly
+    service.logger = logger; -- exposed for modules that want to log player lifecycle events
 
     --- Register a loader run (and awaited) while a player loads, before they're ready.
     ---

@@ -12,9 +12,13 @@
 
 local settings <const> = Server.GetCustomSettings(); ---@type table<string, ServerSetting>
 local make_loader <const>  = require 'core/loader.lua'; ---@type fun(ctx: AppContext): Loader
-local events <const> = require 'core/emitter.lua'; ---@type EventEmitter
+local events <const> = require 'core/bus.lua'; ---@type EventEmitter
+local Logger <const> = require 'lib/globals/logger.lua'; ---@type Logger
 
-local formatter <const> = "[norm] %s";
+local db_logger <const> = Logger({
+    level = LogLevel.INFO,
+    prefix = "Norm"
+});
 
 local adapter <const> = Norm.adapters.nanos.new({
     engine = DatabaseEngine.MySQL,
@@ -22,21 +26,17 @@ local adapter <const> = Norm.adapters.nanos.new({
     pool_size = 20,
     on_ready = function(ok, err)
         if (not ok) then
-            Console.Error(formatter:format("[adapter] open failed: " .. tostring(err)));
+            db_logger:error("[adapter] open failed: " .. tostring(err));
             return;
         end
-        Console.Log(formatter:format("[adapter] database opened"));
+        db_logger:success("[adapter] database opened");
     end,
 });
 
 local db <const> = Norm.new({
     adapter = adapter,
     logger = function(level, message)
-        if (level == "ERROR") then
-            Console.Error(formatter:format(message));
-            return;
-        end
-        Console.Log(formatter:format(message));
+        db_logger:log(LogLevel[level] or LogLevel.INFO, message);
     end,
     log = false,
     queue_until_ready = true,
@@ -53,6 +53,10 @@ local ctx <const> = {
     config   = {},
     events   = events,
     settings = settings,
+    logger  = Logger({
+        level = LogLevel.INFO,
+        prefix = "Application"
+    })
 };
 
 local loader <const> = make_loader(ctx);

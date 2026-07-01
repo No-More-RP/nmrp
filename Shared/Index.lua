@@ -1,5 +1,6 @@
 IS_SERVER = Server ~= nil; --- Tell whether we're running in server or client context. (Client is nil on the server, Server is nil on the client.)
 IS_CLIENT = Client ~= nil; --- Tell whether we're running in server or client context. (Client is nil on the server, Server is nil on the client.)
+DEV_MODE = false; --- Enable development mode (hot reload, debug logging, etc). Set to false for production.
 
 Promise.OnUnhandledRejection(function(reason)
     Console.Error(("Unhandled promise rejection: %s"):format(tostring(reason)));

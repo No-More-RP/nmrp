@@ -16,10 +16,12 @@
 --- ```
 local EventEmitter <const> = require 'lib/classes/event-emitter.lua'; ---@type EventEmitter
 local hooks <const> = require 'lib/classes/hook.lua'; ---@type HookModule
+local Logger <const> = require 'lib/globals/logger.lua'; ---@type Logger
 
 ---@alias RouteOptions { focus?: boolean, mouse?: boolean }
 
 ---@class Interface : EventEmitter
+---@field logger Logger
 ---@field ui WebUI
 ---@field ready boolean
 ---@field has_focus boolean
@@ -50,6 +52,7 @@ end
 ---@return void
 function Interface:__init(webui)
     EventEmitter.__init(self);
+    self.logger = Logger("Interface");
     self.ui = webui;
     self.ready = false;
     self.has_focus = false;

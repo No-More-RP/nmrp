@@ -1,15 +1,16 @@
---- Chat: transport of chat messages + command specs to the WebUI, plus focus on open.
---- Pushes through the Interface (messages buffer until the page is ready). See the event
---- contract in UI/src/nanos/events.ts:
+--- chat.view.lua: transport of chat messages + command specs to the WebUI, plus focus on
+--- open. Pushes through the Interface (messages buffer until the page is ready). Driven by
+--- chat.controller. See the event contract in the nmrp-ui events.ts:
 ---   Lua -> JS : chat:message, chat:clear, chat:commands, chat:focus
 ---   JS -> Lua : chat:submit, chat:close
 ---
 --- ```lua
---- local chat <const> = require 'ui/components/chat.lua'.get(interface);
+--- local chat <const> = require 'chat.view.lua'.get(interface);
 --- chat:announce("Welcome to the server!");
 --- ```
 ---@class ChatUI : LightClass
----@field ui Interface
+---@field logger Logger
+---@field interface Interface
 ---@field open boolean
 ---@overload fun(interface: Interface): ChatUI
 local ChatUI <const> = class.new("ChatUI");
@@ -35,7 +36,8 @@ end
 ---@param interface Interface The interface manager.
 ---@return void
 function ChatUI:__init(interface)
-    self.ui = interface;
+    self.interface = interface;
+    self.logger = self.interface.logger:child("Chat");
     self.open = false;
 end
 
@@ -48,7 +50,7 @@ end
 ---@param author string?
 ---@param text string
 function ChatUI:message(kind, author, text)
-    self.ui:send("chat:message", { kind = kind, author = author, text = text });
+    self.interface:send("chat:message", { kind = kind, author = author, text = text });
 end
 
 --- Server-wide announcement.
@@ -89,7 +91,7 @@ function ChatUI:command_output(text) self:message("command", nil, text); end
 --- ```lua
 --- chat:clear();
 --- ```
-function ChatUI:clear() self.ui:send("chat:clear"); end
+function ChatUI:clear() self.interface:send("chat:clear"); end
 
 --- Push the autocomplete command list to the input.
 ---
@@ -97,7 +99,7 @@ function ChatUI:clear() self.ui:send("chat:clear"); end
 --- chat:set_commands(command.specs());
 --- ```
 ---@param specs CommandSpec[]
-function ChatUI:set_commands(specs) self.ui:send("chat:commands", specs); end
+function ChatUI:set_commands(specs) self.interface:send("chat:commands", specs); end
 
 --- Whether the input box is currently open.
 ---
@@ -117,8 +119,8 @@ function ChatUI:is_open() return self.open; end
 ---@param open boolean
 function ChatUI:focus(open)
     self.open = open;
-    self.ui:send("chat:focus", open);
-    if (open) then self.ui:set_focus(); else self.ui:release_focus(); end
+    self.interface:send("chat:focus", open);
+    if (open) then self.interface:set_focus(); else self.interface:release_focus(); end
 end
 
 return ChatUI;

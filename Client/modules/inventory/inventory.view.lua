@@ -1,15 +1,16 @@
---- Inventory: a PAGE (route "/inventory"). State + transport of the inventory to the
---- WebUI; opening/closing drives the router (the page shows while its route is active).
---- Pushes through the Interface (messages buffer until the page is ready). See the event
---- contract in UI/src/nanos/events.ts:
+--- inventory.view.lua: a PAGE (route "/inventory"). State + transport of the inventory to
+--- the WebUI; opening/closing drives the router (the page shows while its route is active).
+--- Pushes through the Interface (messages buffer until the page is ready). Driven by
+--- inventory.controller. See the event contract in the nmrp-ui events.ts:
 ---   Lua -> JS : inventory:set
 ---   JS -> Lua : inventory:use, inventory:drop, inventory:move
 ---
 --- ```lua
---- local inventory <const> = require 'ui/pages/inventory.lua'.get(interface);
+--- local inventory <const> = require 'inventory.view.lua'.get(interface);
 --- ```
 ---@class InventoryUI : LightClass
----@field ui Interface
+---@field logger Logger
+---@field interface Interface
 ---@field data table
 ---@overload fun(interface: Interface): InventoryUI
 local InventoryUI <const> = class.new("InventoryUI");
@@ -32,7 +33,8 @@ end
 ---@param interface Interface The interface manager.
 ---@return void
 function InventoryUI:__init(interface)
-    self.ui = interface;
+    self.interface = interface;
+    self.logger = self.interface.logger:child("Inventory");
     -- IMPORTANT: `slot` is 0-based (aligned with the JS grid).
     self.data = { items = {}, maxSlots = 20, maxWeight = 50 };
 end
@@ -45,7 +47,7 @@ end
 ---@param data table
 function InventoryUI:set(data)
     self.data = data;
-    self.ui:send("inventory:set", data);
+    self.interface:send("inventory:set", data);
 end
 
 --- Re-send the current inventory.
@@ -54,7 +56,7 @@ end
 --- inventory:sync();
 --- ```
 function InventoryUI:sync()
-    self.ui:send("inventory:set", self.data);
+    self.interface:send("inventory:set", self.data);
 end
 
 --- Whether the inventory page is the current route.
@@ -64,7 +66,7 @@ end
 --- ```
 ---@return boolean
 function InventoryUI:is_open()
-    return self.ui.current_route == "/inventory";
+    return self.interface.current_route == "/inventory";
 end
 
 --- Open/close the inventory page through the router (focus + mouse on open; the page
@@ -76,9 +78,9 @@ end
 ---@return void
 function InventoryUI:toggle()
     if (self:is_open()) then
-        self.ui:reset_route();
+        self.interface:reset_route();
     else
-        self.ui:set_route("/inventory", { focus = true, mouse = true });
+        self.interface:set_route("/inventory", { focus = true, mouse = true });
     end
 end
 

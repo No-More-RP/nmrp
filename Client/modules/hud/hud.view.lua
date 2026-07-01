@@ -1,12 +1,14 @@
---- Hud: state + transport of vitals to the WebUI. Pushes through the Interface (so
---- messages buffer until the page is ready). See UI/src/nanos/events.ts.
+--- hud.view.lua: state + transport of vitals to the WebUI. Pushes through the Interface
+--- (so messages buffer until the page is ready). Driven by hud.controller. See the event
+--- contract in the nmrp-ui events.ts.
 ---
 --- ```lua
---- local HudUI <const> = require 'ui/components/hud.lua'; ---@type HudUI
+--- local HudUI <const> = require 'hud.view.lua'; ---@type HudUI
 --- local hud <const> = HudUI.get(interface);
 --- ```
 ---@class HudUI : LightClass
----@field ui Interface
+---@field logger Logger
+---@field interface Interface
 ---@field state table
 ---@field private _character Character|nil
 ---@field private _on_health any
@@ -31,12 +33,16 @@ end
 ---@param interface Interface The interface manager.
 ---@return void
 function HudUI:__init(interface)
-    self.ui = interface;
+    self.interface = interface;
+    self.logger = self.interface.logger:child("HUD");
     -- Full HUD state (mirror of HudData on the TS side).
     self.state = {
         health = 100, maxHealth = 100,
         armor = 0, maxArmor = 100,
         hunger = 100, thirst = 100,
+        -- Stamina is a motion segment (see set_stamina): value now, signed rate (units/s),
+        -- and delay (s) before the rate applies. The WebUI interpolates the bar from it.
+        stamina = { value = 100, rate = 0, delay = 0 },
         money = 0,
         ammoInClip = nil, ammoReserve = nil, weaponName = nil,
     };
@@ -53,7 +59,7 @@ end
 ---@param partial table
 function HudUI:push(partial)
     for k, v in pairs(partial) do self.state[k] = v; end
-    self.ui:send("hud:update", partial);
+    self.interface:send("hud:update", partial);
 end
 
 --- Send the whole state (used on the "ui:ready" handshake).
@@ -62,7 +68,7 @@ end
 --- hud_ui:sync();
 --- ```
 function HudUI:sync()
-    self.ui:send("hud:update", self.state);
+    self.interface:send("hud:update", self.state);
 end
 
 --- Set health (and optionally max health).
@@ -74,6 +80,20 @@ end
 ---@param max number?
 function HudUI:set_health(value, max)
     self:push({ health = value, maxHealth = max or self.state.maxHealth });
+end
+
+--- Set the stamina motion segment: the value now, the signed rate (units/s, negative
+--- while draining, positive while regenerating, 0 when steady), and the delay (s) before
+--- the rate applies (regen cooldown). The WebUI interpolates the bar from it.
+---
+--- ```lua
+--- hud_ui:set_stamina(80, -25, 0);  -- draining from 80 at 25/s
+--- ```
+---@param value number
+---@param rate number
+---@param delay number
+function HudUI:set_stamina(value, rate, delay)
+    self:push({ stamina = { value = value, rate = rate, delay = delay } });
 end
 
 --- Set armor (and optionally max armor).

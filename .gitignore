@@ -1,0 +1,3 @@
+# nmrp-ui is a standalone repo (github.com/No-More-RP/nmrp-ui), developed locally in
+# UI/ but not tracked here. Its build output lands in Client/web via the UI CI.
+UI/

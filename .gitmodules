@@ -1,6 +1,3 @@
 [submodule "Shared/lib/globals/class"]
 	path = Shared/lib/globals/class
 	url = https://github.com/No-More-RP/light-class.git
-[submodule "UI"]
-	path = UI
-	url = https://github.com/No-More-RP/nmrp-ui.git

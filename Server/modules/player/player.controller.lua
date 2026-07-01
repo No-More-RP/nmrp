@@ -11,6 +11,9 @@ return function(ctx)
     local players <const> = ctx.services.player; ---@type PlayerService
     local spawn_points <const> = Server.GetMapSpawnPoints();
     local fallback_spawn_point <const> = { location = Vector(0, 0, 300), rotation = Rotator(0, 0, 0) };
+    local logger <const> = players.logger;
+
+    logger:debug("spawn points: %d, fallback: %s", #spawn_points, JSON.stringify(fallback_spawn_point));
 
     --- Create the pawn, load/cache the player's data (runs module loading hooks),
     --- restore world state, possess. Coroutine-only (load awaits).
@@ -21,8 +24,9 @@ return function(ctx)
     ---@async
     ---@param player Player
     local function spawn(player)
+        logger:debug("spawning player %s", player:GetAccountID());
         local spawn_point <const> = #spawn_points > 0 and spawn_points[math.random(1, #spawn_points)] or fallback_spawn_point;
-        local location <const>, rotation <const> = spawn_point.location, spawn_point.rotation;
+        local location , rotation = spawn_point.location, spawn_point.rotation;
         local character <const> = Character(location, rotation);
         local _, character_data <const> = players.load(player, {
             model = character:GetMesh(),
@@ -30,16 +34,29 @@ return function(ctx)
             rotation = { Pitch = rotation.Pitch, Yaw = rotation.Yaw, Roll = rotation.Roll },
         });
 
+        logger:debug("spawned player %s character's at %s %s", player:GetAccountID(), JSON.stringify(location), JSON.stringify(rotation));
+
+        location, rotation = Vector(character_data.location.X, character_data.location.Y, character_data.location.Z),
+            Rotator(character_data.rotation.Pitch, character_data.rotation.Yaw, character_data.rotation.Roll);
+
         character:SetMesh(character_data.model);
-        character:SetLocation(Vector(character_data.location.X, character_data.location.Y, character_data.location.Z));
-        character:SetRotation(Rotator(character_data.rotation.Pitch, character_data.rotation.Yaw, character_data.rotation.Roll));
+        character:SetLocation(location);
+        character:SetRotation(rotation);
         player:Possess(character);
+        logger:success("spawned player %s character's at %s %s", player:GetAccountID(), JSON.stringify(location), JSON.stringify(rotation));
     end
 
     Player.Subscribe("Spawn", threadify(spawn));
 
     -- Disconnect: the save that matters. Runs releasing hooks, final-saves, drops cache.
     Player.Subscribe("Destroy", threadify(players.release));
+
+    -- Relay the load lifecycle to the owning client: once a player's data is loaded (bus
+    -- "player:ready"), signal the client so its views react (mirror of the server bus).
+    -- Fire-and-forget: each feature pushes its own initial state, no request/reply.
+    ctx.events:on("player:ready", function(player)
+        Events.CallRemote("player:ready", player, Reliability.Reliable);
+    end);
 
     -- Sync schema, then spawn anyone already connected (e.g. on package reload).
     Package.Subscribe("Load", threadify(function()
@@ -50,7 +67,7 @@ return function(ctx)
     -- Autosave: anti-crash net. Dirty-tracked, so unchanged rows cost nothing.
     Timer.SetInterval(threadify(function()
         local n <const> = players.save_all();
-        if (n > 0) then Console.Log("[nmrp] autosaved %d player(s)", n); end
+        if (n > 0) then logger:success("autosaved %d player(s)", n); end
     end), 300000 --[[ DEV: lower to 10000 while testing ]]);
 
     -- Dev: respawn everyone. threadify'd because spawn() awaits the DB load.
@@ -74,7 +91,7 @@ return function(ctx)
             local pawn <const> = player:GetControlledCharacter();
             if (not pawn) then Chat.SendMessage(player, "No controlled character"); return; end
             local loc <const>, rot <const> = pawn:GetLocation(), pawn:GetRotation();
-            Console.Log("Player %s: Vector(%f, %f, %f), Rotator(%f, %f, %f)",
+            logger:info("Player %s character's coordinates: Vector(%f, %f, %f), Rotator(%f, %f, %f)",
                 player:GetAccountID(), loc.X, loc.Y, loc.Z, rot.Pitch, rot.Yaw, rot.Roll);
         end,
     });

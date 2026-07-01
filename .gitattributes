@@ -1,0 +1,5 @@
+* text=auto eol=lf
+
+# Prebuilt linter binaries: never line-ending normalized or diffed as text.
+scripts/nmrp-linter binary
+scripts/nmrp-linter.exe binary

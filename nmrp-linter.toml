@@ -1,0 +1,22 @@
+# Convention linter config for no-more-rp. Loaded automatically when the linter runs with
+# this folder as its root (the current directory, or --root).
+
+# File extensions to lint.
+extensions = ["lua", "ts", "svelte"]
+
+# Directory names never descended into (matched anywhere in the tree).
+skip_dirs = ["node_modules", ".git", "dist", "build", ".svelte-kit"]
+
+# Path prefixes (from the root) skipped entirely: the WebUI build output, the third-party
+# light-class submodule, and the linter's own folder.
+skip_prefixes = ["Client/web/", "Shared/lib/globals/class/", "scripts/"]
+
+# Paths where the no-french rule is not applied (they hold translated text on purpose).
+french_allowed = ["Shared/locales/", "UI/src/locale/"]
+
+# Per-rule toggles. Every rule is on by default; set one to false to disable it.
+# Rule ids: no-empty-file, encoding, no-bom, crlf, final-newline, no-em-dash, no-french,
+#           no-separator, require-lua, paren-condition, semicolon
+# (semicolon parses Lua with full_moon and also emits syntax-error on files that do not parse.)
+[rules]
+# paren-condition = false

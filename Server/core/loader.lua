@@ -1,4 +1,4 @@
---- loader.lua — module loader / registry. This is the decorator-free replacement
+--- loader.lua: module loader / registry. This is the decorator-free replacement
 --- for a DI framework: each feature module returns a descriptor instead of using
 --- an `@Module` decorator, and the loader wires everything by hand, explicitly.
 ---

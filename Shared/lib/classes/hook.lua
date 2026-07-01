@@ -1,4 +1,4 @@
---- hook.lua — a small "tapable"-style family of hook classes, built on light-class.
+--- hook.lua: a small "tapable"-style family of hook classes, built on light-class.
 --- Where EventEmitter is multi-event fire-and-forget pub/sub, a Hook is ONE ordered
 --- pipeline of callbacks ("taps") for a single extension point. Variants differ only
 --- in how :call() combines the taps.
@@ -7,7 +7,7 @@
 --- :call() is invoked from a threadify'd handler.
 ---
 --- Once this file is required, the classes are retrievable from the `class` registry
---- (class.Hook, class.BailHook, class.WaterfallHook, class.ParallelHook) — these live in
+--- (class.Hook, class.BailHook, class.WaterfallHook, class.ParallelHook), these live in
 --- light-class's container, NOT in _G. Prefer `require` for typed access (see below).
 
 --- Base hook: run every tap in registration order, forwarding the same args.
@@ -145,7 +145,7 @@ end
 
 --- Each tap RETURNS an awaitable (a Norm promise) or nil; all returned promises are
 --- put in flight first, then awaited together. Use when taps are independent I/O.
---- NOTE the contract: taps must NOT :await() internally — they return the promise.
+--- NOTE the contract: taps must NOT :await() internally, they return the promise.
 ---
 --- ```lua
 --- local loaders <const> = hooks.ParallelHook();
@@ -176,14 +176,14 @@ function ParallelHook:call(...)
 end
 
 -- Each class above is registered in the `class` registry (class.Hook / class.BailHook /
--- etc.) when this file is required — not in _G. We also return them so callers can do
--- `require 'lib/classes/hook.lua'` for typed access. The four are siblings — returning
+-- etc.) when this file is required, not in _G. We also return them so callers can do
+-- `require 'lib/classes/hook.lua'` for typed access. The four are siblings, returning
 -- only Hook would hide the rest.
 --
 -- LuaLS can't follow the mandatory ".lua" require path, so annotate the require site:
 --     local hooks = require 'lib/classes/hook.lua'; ---@type HookModule
 -- HookModule (and every Hook class) is indexed workspace-wide, so the annotation is
--- enough — hooks.BailHook() is then typed as a BailHook instance (via the @overload).
+-- enough, hooks.BailHook() is then typed as a BailHook instance (via the @overload).
 ---@class HookModule
 ---@field Hook Hook
 ---@field BailHook BailHook

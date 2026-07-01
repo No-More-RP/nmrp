@@ -1,9 +1,9 @@
---- player.store.lua — (repository/cache) in-memory store for the player module.
+--- player.store.lua: (repository/cache) in-memory store for the player module.
 ---
 --- Caches each online player's `players` AND `characters` rows so gameplay code and
 --- the autosave loop never re-query the DB just to fetch a record. `record:save()` is
 --- dirty-tracked: it writes only changed columns, and runs NO query when nothing
---- changed — so saving "everyone" every few minutes is cheap.
+--- changed, so saving "everyone" every few minutes is cheap.
 ---
 --- Factory: pass the player module's two Norm models.
 ---
@@ -109,7 +109,7 @@ return function(models)
 
     --- Save BOTH rows (player + character) for one player. Captures world state,
     --- fires both writes, then awaits both. nanos has no transactions, so these are
-    --- two independent UPDATEs — each dirty-tracked (a no-op when nothing changed).
+    --- two independent UPDATEs, each dirty-tracked (a no-op when nothing changed).
     --- Run inside a coroutine.
     ---
     --- ```lua

@@ -1,4 +1,4 @@
---- player.controller.lua — (C) wires the player module to the world: spawn flow,
+--- player.controller.lua: (C) wires the player module to the world: spawn flow,
 --- Player/Package subscriptions, autosave, and player-facing commands. This replaces
 --- the gameplay logic that used to live inline in Server/Index.lua (the boat / AWP /
 --- sphere-trigger demo code from there was intentionally dropped).

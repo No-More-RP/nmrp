@@ -1,6 +1,6 @@
---- economy.player.lua — installs cash-account convenience methods on the nanos `Player`
+--- economy.player.lua: installs cash-account convenience methods on the nanos `Player`
 --- class, delegating to the economy service. Defined HERE (not in the player module)
---- because the player module must not depend on economy — economy depends on player.
+--- because the player module must not depend on economy, economy depends on player.
 --- The methods still live on the global Player, so `player:GetCash()` works everywhere.
 --- Installed from economy.controller (the service exists by the controller pass).
 ---

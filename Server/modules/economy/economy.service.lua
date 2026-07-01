@@ -1,11 +1,11 @@
---- economy.service.lua — (S) account & ledger logic, closure-factory style.
+--- economy.service.lua: (S) account & ledger logic, closure-factory style.
 ---
 --- Accounts are polymorphic (owner_type + owner_id), so the same code serves
 --- characters, companies and factions. Personal money is the character's "cash"
 --- account (created on character load); there is no cash/bank column on the player.
 ---
 --- WRITE-BEHIND persistence. deposit/withdraw/transfer mutate the cached record in RAM
---- and BUFFER the change (a dirty account + a pending ledger row) — they do NOT touch
+--- and BUFFER the change (a dirty account + a pending ledger row), they do NOT touch
 --- the DB, so they are synchronous and cheap. flush() later writes everything:
 ---   - balances COALESCE (a dirty account is one UPDATE no matter how many ops hit it),
 ---   - ledger rows BATCH (each event is a distinct fact), all put in flight then awaited

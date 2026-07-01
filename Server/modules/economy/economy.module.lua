@@ -1,4 +1,4 @@
---- economy.module.lua — feature descriptor. `depends = { "player" }`: the cash account
+--- economy.module.lua: feature descriptor. `depends = { "player" }`: the cash account
 --- is created on character load (owner = the character).
 --- require paths relative to THIS folder; returns typed by hand.
 local model <const>      = require 'economy.model.lua';      ---@type fun(db: NormOrm): EconomyModels

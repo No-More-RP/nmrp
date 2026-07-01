@@ -1,4 +1,4 @@
---- player.class.lua — extends the nanos `Player` class with the player module's core
+--- player.class.lua: extends the nanos `Player` class with the player module's core
 --- helpers: an online-player registry (Create) and the custom-value metatable hooks
 --- (index/newindex) that back `player.<key>` reads/writes (e.g. `player.db_id`).
 --- Side-effect require (mutates the global Player); returns Player for convenience.

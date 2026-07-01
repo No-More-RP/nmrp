@@ -1,4 +1,4 @@
---- player.module.lua — feature descriptor (the @Module-free registration unit).
+--- player.module.lua: feature descriptor (the @Module-free registration unit).
 --- require paths are relative to THIS folder (nanos resolves require per caller dir).
 --- The return values of require() can't be inferred through the mandatory ".lua",
 --- so each one is typed by hand below.

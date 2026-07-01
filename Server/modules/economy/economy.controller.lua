@@ -1,4 +1,4 @@
---- economy.controller.lua — (C) economy commands + write-behind flush wiring.
+--- economy.controller.lua: (C) economy commands + write-behind flush wiring.
 --- cash/givecash/pay are synchronous (the service buffers in RAM); only /transactions
 --- hits the DB, so it runs in a coroutine. The flush timer + shutdown flush live here
 --- (engine wiring); per-player flush on disconnect is handled by the service.

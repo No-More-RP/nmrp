@@ -1,7 +1,7 @@
---- economy.model.lua — (M) the account ledger. `accounts` is polymorphic: an account
+--- economy.model.lua: (M) the account ledger. `accounts` is polymorphic: an account
 --- is owned by some entity (owner_type + owner_id), so the same table serves
 --- characters, companies and factions, with any number of accounts per owner and any
---- `type`. Personal money is just an account of type "cash" owned by the character —
+--- `type`. Personal money is just an account of type "cash" owned by the character,
 --- there is no cash/bank column on the player. `account_transactions` is the immutable
 --- ledger (one row per balance change, ordered by id; created_at from the DB clock).
 ---

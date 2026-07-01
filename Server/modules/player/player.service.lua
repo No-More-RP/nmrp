@@ -1,4 +1,4 @@
---- player.service.lua — (S) player/character lifecycle, closure-factory style.
+--- player.service.lua: (S) player/character lifecycle, closure-factory style.
 --- Wraps the player store and exposes a LOADING-PHASE hook API so other modules
 --- contribute their own per-player data while a player loads.
 ---

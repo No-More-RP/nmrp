@@ -1,13 +1,13 @@
---- event-emitter.lua — a small but complete event emitter built on the project's
+--- event-emitter.lua: a small but complete event emitter built on the project's
 --- light-class. Returns the EventEmitter class; instantiate it with:
 ---     local EventEmitter <const> = require 'lib/classes/event-emitter.lua'; ---@type EventEmitter
 ---     local bus <const> = EventEmitter();
---- (Once required, it is also in the `class` registry as `class.EventEmitter` — not in
---- _G — but prefer require.)
+--- (Once required, it is also in the `class` registry as `class.EventEmitter`, not in
+--- _G, but prefer require.)
 ---
 --- Listeners run SYNCHRONOUSLY, in registration order, in the CALLER's coroutine.
 --- So when emit() is called from inside a threadify'd handler, a listener may
---- :await() — it shares that coroutine. emit() iterates a snapshot, so a listener
+--- :await(), it shares that coroutine. emit() iterates a snapshot, so a listener
 --- can safely unsubscribe itself or others mid-dispatch.
 
 --- Multi-event fire-and-forget pub/sub.

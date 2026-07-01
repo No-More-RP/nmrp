@@ -1,4 +1,4 @@
---- player.model.lua — (M) defines the `players` and `characters` tables.
+--- player.model.lua: (M) defines the `players` and `characters` tables.
 --- Returned table is injected as ctx.models.player for the service to consume.
 ---
 --- ```lua

@@ -1,4 +1,4 @@
---- app.lua — server bootstrap. Builds the DB adapter + Norm instance, assembles the
+--- app.lua: server bootstrap. Builds the DB adapter + Norm instance, assembles the
 --- app context (the DI container), registers every feature module, then boots them
 --- in dependency order: models (M) -> services (S) -> controllers (C).
 ---

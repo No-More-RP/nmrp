@@ -131,27 +131,57 @@ local function register_command(name, callback, description, parameters, client)
 	end
 end
 
---- Register a command (the public entry point of the command system). The callback
---- receives a single CommandContext { player, arguments, name } — same shape on server
---- and client, so `player` is nil from the server console / a client-local run.
+--- The command system entry point: call it to register a command. It is a table so it
+--- can also expose `command.specs()` (registry snapshot for the chat autocomplete) and
+--- `command.run(line)` (dispatch a "/…" line). The callback receives a single
+--- CommandContext { player, arguments, name }, `player` is nil from the server console
+--- or a client-local run.
 ---
 --- ```lua
---- command({
----     name = "givecash",
----     description = "Give cash to a player",
----     parameters = {
----         { name = "target", type = "player", optional = false, description = "Target player id" },
----         { name = "amount", type = "number", optional = false, description = "Amount" },
----     },
----     callback = function(ctx)
----         money.add(ctx.arguments.target, ctx.arguments.amount);
----     end,
---- });
+--- command({ name = "cash", callback = function(ctx) show_cash(ctx.player); end });
 --- ```
----@param data CommandConstructor The command data to register
----@return void
-function command(data)
-    return register_command(data.name, data.callback, data.description, data.parameters, IS_CLIENT);
+---@class CommandLib
+---@overload fun(data: CommandConstructor): void
+command = setmetatable({}, {
+    __call = function(_, data)
+        return register_command(data.name, data.callback, data.description, data.parameters, IS_CLIENT);
+    end,
+});
+
+---@alias CommandSpec { name: string, description: string, params: CommandArgument[] }
+
+--- Snapshot the registered commands as autocomplete specs for the chat UI.
+---
+--- ```lua
+--- chat:set_commands(command.specs());
+--- ```
+---@return CommandSpec[]
+function command.specs()
+    local specs <const> = {}; ---@type CommandSpec[]
+    for _, cmd in pairs(registered_commands) do
+        specs[#specs + 1] = { name = cmd.name, description = cmd.description, params = cmd.parameters };
+    end
+    return specs;
+end
+
+--- Dispatch a "/…" line through the command system (client side). Returns true if it
+--- matched a known command (then it ran locally or was forwarded to the server).
+---
+--- ```lua
+--- if (not command.run(text)) then chat:message("chat", name, text); end
+--- ```
+---@param message string
+---@return boolean handled
+function command.run(message)
+    if (message:sub(1, 1) ~= "/") then return false; end
+    local name <const>, rest <const> = message:match("^/(%S+)%s*(.*)$");
+    if (not name) then return false; end
+    local callback <const> = registered_commands_callbacks[name];
+    if (not callback) then return false; end
+    local args <const> = {};
+    for arg in rest:gmatch("%S+") do args[#args + 1] = arg; end
+    callback(nil, args);
+    return true;
 end
 
 if (IS_SERVER) then
@@ -205,24 +235,9 @@ if (IS_CLIENT) then
         register_command(command.name, nil, command.description, command.parameters);
     end);
     Chat.Subscribe("PlayerSubmit", function(message)
-        local is_command <const> = message:sub(1, 1) == "/";
-        if (not is_command) then
-            return true;
-        end
-        local command_name <const>, args <const> = message:match("^/(%S+)%s*(.*)$");
-        if (not command_name) then
-            return false;
-        end
-        local callback <const> = registered_commands_callbacks[command_name];
-        if (not callback) then
-            return false;
-        end
-        local args_table <const> = {};
-        for arg in args:gmatch("%S+") do
-            args_table[#args_table + 1] = arg;
-        end
-        callback(nil, args_table);
-        return false;
+        if (message:sub(1, 1) ~= "/") then return true; end
+        command.run(message);
+        return false; -- a slash line never shows in the native chat
     end);
 
     command({

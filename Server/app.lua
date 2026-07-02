@@ -45,7 +45,14 @@ local db <const> = Norm.new({
 
 --- The application container: the single object passed to every module. Models and
 --- services populate themselves into it during boot; events is the cross-module bus.
----@type AppContext
+---@class AppContext
+---@field db NormOrm
+---@field models table<string, any>
+---@field services table<string, any>
+---@field config table
+---@field events EventEmitter
+---@field settings table<string, ServerSetting>
+---@field logger Logger
 local ctx <const> = {
     db       = db,
     models   = {},
@@ -65,6 +72,32 @@ local loader <const> = make_loader(ctx);
 local player_module <const>  = require 'modules/player/player.module.lua';   ---@type AppModule
 local economy_module <const> = require 'modules/economy/economy.module.lua'; ---@type AppModule
 
-CreateThread(loader.boot, player_module, economy_module);
+-- Expose the app to addon packages through the exported NMRP global (Package.Export in
+-- Shared/Index.lua). An addon that depends on nmrp sees these injected as globals.
+NMRP.ctx = ctx;
+
+--- Resolves to `ctx` once every core module is booted (models -> services -> controllers)
+--- and the schema is synced. Starting the boot here is what starts the whole app.
+NMRP.ready = async(function() return loader.boot(player_module, economy_module); end);
+
+--- Register one or more addon modules from another package. Waits for the core to be ready,
+--- then wires the new modules and syncs their tables. Returns a Promise resolving to `ctx`,
+--- so an addon never has to worry about whether the core has finished booting.
+---
+--- ```lua
+--- -- in an addon's Server/Index.lua (Package.json depends on nmrp):
+--- NMRP.register(require 'modules/needs/needs.module.lua');
+--- ```
+---@vararg AppModule
+---@return Promise
+function NMRP.register(...)
+    local mods <const> = { ... }; ---@type AppModule[]
+    return async(function()
+        NMRP.ready:await();
+        return loader.register(table.unpack(mods));
+    end);
+end
+
+Package.Export("NMRP", NMRP);
 
 return ctx;

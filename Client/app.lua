@@ -13,7 +13,7 @@
 
 local Interface <const> = require 'ui/interface.lua'; ---@type Interface
 local bus <const> = require 'core/bus.lua';           ---@type EventEmitter
-local make_loader <const> = require 'core/loader.lua'; ---@type fun(ctx: ClientAppContext): { boot: fun(...: ClientAppModule): ClientAppContext }
+local make_loader <const> = require 'core/loader.lua'; ---@type fun(ctx: ClientAppContext): ClientLoader
 
 -- Register client modules here. Adding one = create modules/<name>/<name>.module.lua and
 -- add a line to boot(...) below.
@@ -63,7 +63,8 @@ local ctx <const> = {
     services = {},
 };
 
-make_loader(ctx).boot(
+local loader <const> = make_loader(ctx);
+loader.boot(
     player_module,
     command_module,
     stamina_module,
@@ -71,5 +72,29 @@ make_loader(ctx).boot(
     chat_module,
     inventory_module
 );
+
+-- Expose the client app to addon packages through the exported NMRP global (mirror of the
+-- server side). The client boots synchronously, so `ready` is already resolved here.
+NMRP.ctx = ctx;
+
+--- Resolves to `ctx`. The client has no awaited boot, so this is ready immediately; it
+--- exists for API symmetry with the server, where addons must await the schema sync.
+NMRP.ready = async(function() return ctx; end);
+
+--- Register one or more addon client modules from another package. Wires the new modules
+--- (views -> services -> controllers) and returns a Promise resolving to `ctx`.
+---
+--- ```lua
+--- -- in an addon's Client/Index.lua (Package.json depends on nmrp):
+--- NMRP.register(require 'modules/needs/needs.module.lua');
+--- ```
+---@vararg ClientAppModule
+---@return Promise
+function NMRP.register(...)
+    local mods <const> = { ... }; ---@type ClientAppModule[]
+    return async(function() return loader.register(table.unpack(mods)); end);
+end
+
+Package.Export("NMRP", NMRP);
 
 return MainUI;

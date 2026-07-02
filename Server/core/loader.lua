@@ -19,9 +19,13 @@
 ---   3. controllers-> mod.controller(ctx)
 ---
 ---@alias ServerSetting { label: string, type: 'boolean' | 'text' | 'floating' | 'integer' | 'select', default: any, description?: string } | string
----@alias AppModule { name: string, depends?: string[], models?: fun(db: NormOrm): any, service?: fun(ctx: AppContext): any, controller?: fun(ctx: AppContext): void }
----@alias AppContext { db: NormOrm, models: table<string, any>, services: table<string, any>, config: table, events: EventEmitter, settings: table<string, ServerSetting>, logger: Logger }
----@alias Loader { boot: fun(...: AppModule): AppContext }
+---
+---@class AppModule
+---@field name string
+---@field depends? string[]
+---@field models? fun(db: NormOrm): any
+---@field service? fun(ctx: AppContext): any
+---@field controller? fun(ctx: AppContext): void
 
 --- Build a loader bound to an app context.
 ---
@@ -32,9 +36,11 @@
 ---@param ctx AppContext The app container (DI root): db, models, services, config, events
 ---@return Loader
 return function(ctx)
+    ---@class Loader
     local loader <const> = {};
     local modules <const> = {}; ---@type table<string, AppModule> name -> descriptor
     local order <const> = {};   ---@type string[] registration order (tie-break)
+    local booted <const> = {};  ---@type table<string, boolean> name -> wired (its 3 passes ran)
     local logger <const> = ctx.logger:child('Loader');
 
     --- Register a module descriptor. Duplicates are a hard error.
@@ -84,8 +90,33 @@ return function(ctx)
         return sorted;
     end
 
-    --- Register the given modules, then build the whole app: models, then services,
-    --- then controllers, in dependency order.
+    --- Run the model -> service -> controller passes over `list` (already dependency
+    --- sorted), skipping any module already wired, then mark the new ones wired. Does not
+    --- sync the db: the caller does that once, after wiring.
+    ---
+    --- ```lua
+    --- wire(resolve_order());
+    --- ```
+    ---@param list AppModule[]
+    ---@return void
+    local function wire(list)
+        for i = 1, #list do
+            local mod <const> = list[i];
+            if (not booted[mod.name] and mod.models) then ctx.models[mod.name] = mod.models(ctx.db); end
+        end
+        for i = 1, #list do
+            local mod <const> = list[i];
+            if (not booted[mod.name] and mod.service) then ctx.services[mod.name] = mod.service(ctx); end
+        end
+        for i = 1, #list do
+            local mod <const> = list[i];
+            if (not booted[mod.name] and mod.controller) then mod.controller(ctx); end
+        end
+        for i = 1, #list do booted[list[i].name] = true; end
+    end
+
+    --- Register the given (core) modules, then build the whole app: models, then services,
+    --- then controllers, in dependency order, and finally sync the schema.
     ---
     --- ```lua
     --- loader.boot(player_module, money_module, stamina_module);
@@ -94,28 +125,34 @@ return function(ctx)
     ---@vararg AppModule
     ---@return AppContext ctx
     function loader.boot(...)
+        for i = 1, select("#", ...) do register(select(i, ...)); end
+        local sorted <const> = resolve_order();
+        wire(sorted);
+        ctx.db:sync():await();
+        logger:info("booted ^G%d^D module(s)", #sorted);
+        return ctx;
+    end
+
+    --- Late-register addon modules AFTER boot. Their descriptors join the graph, only the
+    --- new ones are wired (they may depend on already-booted core modules), then the schema
+    --- is synced so any new tables are created. Must run in a coroutine (it awaits the sync).
+    ---
+    --- ```lua
+    --- loader.register(require 'modules/needs/needs.module.lua');
+    --- ```
+    ---@async
+    ---@vararg AppModule
+    ---@return AppContext ctx
+    function loader.register(...)
+        local names <const> = {}; ---@type string[]
         for i = 1, select("#", ...) do
             local mod <const> = select(i, ...);
             register(mod);
+            names[#names + 1] = mod.name;
         end
-        local sorted <const> = resolve_order();
-
-        for i = 1, #sorted do
-            local mod <const> = sorted[i];
-            if (mod.models) then ctx.models[mod.name] = mod.models(ctx.db); end
-        end
-        for i = 1, #sorted do
-            local mod <const> = sorted[i];
-            if (mod.service) then ctx.services[mod.name] = mod.service(ctx); end
-        end
-        for i = 1, #sorted do
-            local mod <const> = sorted[i];
-            if (mod.controller) then mod.controller(ctx); end
-        end
-
+        wire(resolve_order());
         ctx.db:sync():await();
-
-        logger:info("booted ^G%d^D module(s)", #sorted);
+        logger:info("registered addon module(s): ^G%s^D", table.concat(names, ", "));
         return ctx;
     end
 

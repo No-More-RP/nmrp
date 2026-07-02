@@ -99,15 +99,13 @@ local loader <const> = make_loader(ctx);
 local player_module <const>  = require 'modules/player/player.module.lua';   ---@type AppModule
 local economy_module <const> = require 'modules/economy/economy.module.lua'; ---@type AppModule
 
-local ctx_promise <const> = async(function() return loader.boot(player_module, economy_module); end);
-
 -- Expose the app to addon packages through the exported NMRP global (Package.Export in
 -- Shared/Index.lua). An addon that depends on nmrp sees these injected as globals.
 NMRP.ctx = ctx;
 
 --- Resolves to `ctx` once every core module is booted (models -> services -> controllers)
 --- and the schema is synced. Starting the boot here is what starts the whole app.
-NMRP.ready = async(function() return ctx_promise:await(); end);
+NMRP.ready = async(function() return loader.boot(player_module, economy_module); end);
 
 --- Register one or more addon modules from another package. Waits for the core to be ready,
 --- then wires the new modules and syncs their tables. Returns a Promise resolving to `ctx`,

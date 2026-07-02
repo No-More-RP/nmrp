@@ -15,6 +15,7 @@ local Interface <const> = require 'ui/interface.lua'; ---@type Interface
 local bus <const> = require 'core/bus.lua';           ---@type EventEmitter
 local make_loader <const> = require 'core/loader.lua'; ---@type fun(ctx: ClientAppContext): ClientLoader
 local SharedSettings <const> = require 'lib/constants/shared.settings.lua'; ---@type SharedSettings
+local Logger <const> = require 'lib/classes/logger.lua'; ---@type Logger
 
 -- Register client modules here. Adding one = create modules/<name>/<name>.module.lua and
 -- add a line to boot(...) below.
@@ -56,8 +57,8 @@ Locale.Attach(MainUI);
 ---@field settings table<string, any> the shared settings (debug, mode, etc)
 ---@type ClientAppContext
 local ctx <const> = {
-    ui       = Interface.get(MainUI),
-    events   = bus,
+    ui = Interface.get(MainUI),
+    events = bus,
     player   = nil,
     locale   = Locale.Namespace("nmrp"),
     logger = logger:child('Application'),
@@ -107,7 +108,13 @@ Client.Subscribe("SpawnLocalPlayer", function(player)
     boot_promise:resolve(ctx);
 end);
 
-local ctx_promise <const> = async(function()
+-- Expose the client app to addon packages through the exported NMRP global (mirror of the
+-- server side). The client boots synchronously, so `ready` is already resolved here.
+NMRP.ctx = ctx;
+
+--- Resolves to `ctx`. The client has no awaited boot, so this is ready immediately; it
+--- exists for API symmetry with the server, where addons must await the schema sync.
+NMRP.ready = async(function()
     boot_promise:await();
     return loader.boot(
         player_module,
@@ -118,14 +125,6 @@ local ctx_promise <const> = async(function()
         inventory_module
     );
 end);
-
--- Expose the client app to addon packages through the exported NMRP global (mirror of the
--- server side). The client boots synchronously, so `ready` is already resolved here.
-NMRP.ctx = ctx;
-
---- Resolves to `ctx`. The client has no awaited boot, so this is ready immediately; it
---- exists for API symmetry with the server, where addons must await the schema sync.
-NMRP.ready = async(function() return ctx_promise:await(); end);
 
 --- Register one or more addon client modules from another package. Wires the new modules
 --- (views -> services -> controllers) and returns a Promise resolving to `ctx`.

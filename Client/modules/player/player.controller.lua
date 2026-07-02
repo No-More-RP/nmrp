@@ -16,7 +16,7 @@ return function(ctx)
     ---@param pawn Actor
     ---@param eventName 'character:possess'|'character:unpossess'
     local function on_pawn_update(pawn, eventName)
-        if (not pawn or not pawn:IsA(Character)) then
+        if (not pawn or not pawn:IsA(Character) or not pawn:IsValid()) then
             return;
         end
         events:emit(eventName, pawn);

@@ -13,25 +13,34 @@ local local_player <const> = require 'local-player.lua'; ---@type fun(): Promise
 return function(ctx)
     local events <const> = ctx.events;
 
-    -- Server -> client: the player's data finished loading (mirror of the server bus).
-    Events.SubscribeRemote("player:ready", threadify(function()
-        -- Resolve the local player, then bridge its character lifecycle to the bus. Async
-        -- because it awaits the player to exist (immediate on reload, else on spawn).
-        local player <const> = local_player():await();
+    ---@param pawn Actor
+    ---@param eventName 'character:possess'|'character:unpossess'
+    local function on_pawn_update(pawn, eventName)
+        if (not pawn or not pawn:IsA(Character)) then
+            return;
+        end
+        events:emit(eventName, pawn);
+    end
+
+    -- Resolve the local player, then bridge its character lifecycle to the bus. Async
+    -- because it awaits the player to exist (immediate on reload, else on spawn).
+    local_player():Then(function(player)
         ctx.player = player;
 
-        events:emit("player:ready");
-
         player:Subscribe("Possess", function(_self, pawn)
-            if (pawn:IsA(Character)) then events:emit("character:possess", pawn); end
+            on_pawn_update(pawn, "character:possess");
         end);
 
         player:Subscribe("UnPossess", function(_self, pawn)
-            if (pawn:IsA(Character)) then events:emit("character:unpossess", pawn); end
+            on_pawn_update(pawn, "character:unpossess");
         end);
 
         -- Package reload mid-game: a character may already be possessed.
-        local pawn <const> = player:GetControlledCharacter();
-        if (pawn and pawn:IsA(Character)) then events:emit("character:possess", pawn); end
-    end));
+        on_pawn_update(player:GetControlledCharacter(), "character:possess");
+    end);
+
+    -- Server -> client: the player's data finished loading (mirror of the server bus).
+    Events.SubscribeRemote("player:ready", function()
+        events:emit("player:ready");
+    end);
 end

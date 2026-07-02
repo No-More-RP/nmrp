@@ -99,7 +99,7 @@ return function(ctx)
     --- no polling). Automatically detaches the previous one.
     ---
     --- ```lua
-    --- hud.attach_character(local_player:GetControlledCharacter());
+    --- hud.attach_character(ctx.player:GetControlledCharacter());
     --- ```
     ---@param char Character
     function view.attach_character(char)

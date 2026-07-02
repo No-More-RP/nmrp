@@ -14,6 +14,7 @@
 local Interface <const> = require 'ui/interface.lua'; ---@type Interface
 local bus <const> = require 'core/bus.lua';           ---@type EventEmitter
 local make_loader <const> = require 'core/loader.lua'; ---@type fun(ctx: ClientAppContext): ClientLoader
+local SharedSettings <const> = require 'lib/constants/shared.settings.lua'; ---@type SharedSettings
 
 -- Register client modules here. Adding one = create modules/<name>/<name>.module.lua and
 -- add a line to boot(...) below.
@@ -47,31 +48,76 @@ Locale.Attach(MainUI);
 ---@class ClientAppContext
 ---@field ui Interface                  the WebUI manager (buffered send, focus, router)
 ---@field events EventEmitter           the client domain bus (player:ready, character:possess, ...)
----@field player Player?                the local player (nil until the player module resolves it)
+---@field player Player                 the local player
 ---@field locale any                    the nmrp locale namespace
 ---@field logger Logger                 the client logger (F8 console)
 ---@field views table<string, any>      view container: module name -> its view (WebUI facade)
 ---@field services table<string, any>   DI container: module name -> its service
+---@field settings table<string, any> the shared settings (debug, mode, etc)
 ---@type ClientAppContext
 local ctx <const> = {
     ui       = Interface.get(MainUI),
     events   = bus,
     player   = nil,
     locale   = Locale.Namespace("nmrp"),
-    logger   = Logger({ level = LogLevel.INFO, prefix = "CApplication" }),
+    logger = logger:child('Application'),
     views    = {},
     services = {},
+    settings = {},
 };
 
+---@param environment 'development' | 'production'
+local function set_logger_env(environment)
+    local dev <const> = environment == 'development';
+    logger:set_level(dev and Logger.LogLevel.DEBUG or Logger.LogLevel.INFO)
+        :set_trace(ctx.settings.debug);
+end
+
+Client.Subscribe("ValueChange", function(key, value)
+    ctx.settings[key] = value;
+    ctx.logger:info("setting changed: %s = %s", tostring(key), tostring(value));
+    if (key ~= SharedSettings.MODE) then return; end
+    ctx.logger:info("environment mode changed to '%s'", tostring(value));
+    DEV_MODE = value == 'development';
+    set_logger_env(value);
+end);
+
+local function load_settings()
+    for _, name in pairs(SharedSettings) do
+        ctx.settings[name] = Client.GetValue(name);
+    end
+    DEV_MODE = ctx.settings.mode == 'development';
+    set_logger_env(ctx.settings.mode);
+end
+
 local loader <const> = make_loader(ctx);
-loader.boot(
-    player_module,
-    command_module,
-    stamina_module,
-    hud_module,
-    chat_module,
-    inventory_module
-);
+local boot_promise <const> = Promise(function(resolve, reject)
+    local player <const> = Client.GetLocalPlayer();
+    if (not player) then
+        return;
+    end
+    ctx.player = player;
+    load_settings();
+    resolve(ctx);
+end);
+
+Client.Subscribe("SpawnLocalPlayer", function(player)
+    ctx.player = player;
+    load_settings();
+    boot_promise:resolve(ctx);
+end);
+
+local ctx_promise <const> = async(function()
+    boot_promise:await();
+    return loader.boot(
+        player_module,
+        command_module,
+        stamina_module,
+        hud_module,
+        chat_module,
+        inventory_module
+    );
+end);
 
 -- Expose the client app to addon packages through the exported NMRP global (mirror of the
 -- server side). The client boots synchronously, so `ready` is already resolved here.
@@ -79,7 +125,7 @@ NMRP.ctx = ctx;
 
 --- Resolves to `ctx`. The client has no awaited boot, so this is ready immediately; it
 --- exists for API symmetry with the server, where addons must await the schema sync.
-NMRP.ready = async(function() return ctx; end);
+NMRP.ready = async(function() return ctx_promise:await(); end);
 
 --- Register one or more addon client modules from another package. Wires the new modules
 --- (views -> services -> controllers) and returns a Promise resolving to `ctx`.
@@ -91,8 +137,10 @@ NMRP.ready = async(function() return ctx; end);
 ---@vararg ClientAppModule
 ---@return Promise
 function NMRP.register(...)
-    local mods <const> = { ... }; ---@type ClientAppModule[]
-    return async(function() return loader.register(table.unpack(mods)); end);
+    return async(function(...)
+        NMRP.ready:await();
+        return loader.register(...);
+    end, ...);
 end
 
 Package.Export("NMRP", NMRP);

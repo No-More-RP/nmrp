@@ -1,12 +1,11 @@
---- player.controller.lua: (C) the client player lifecycle. Resolves the local player (a
---- nanos timing mess, see local-player.lua), bridges its character possess/unpossess onto
---- the bus, and relays the server "player:ready" remote. This is the only owner of the
---- local-player plumbing; every other module reacts to the bus.
+--- player.controller.lua: (C) the client player lifecycle. The local player is already
+--- resolved by app.lua (the client boot is gated on it, so ctx.player is guaranteed here);
+--- this bridges its character possess / unpossess onto the bus and relays the server
+--- "player:ready" remote. Every other module reacts to the bus.
 ---
 --- ```lua
 --- require 'modules/player/player.controller.lua' (ctx);
 --- ```
-local local_player <const> = require 'local-player.lua'; ---@type fun(): Promise
 
 ---@param ctx ClientAppContext
 ---@return void
@@ -22,22 +21,16 @@ return function(ctx)
         events:emit(eventName, pawn);
     end
 
-    -- Resolve the local player, then bridge its character lifecycle to the bus. Async
-    -- because it awaits the player to exist (immediate on reload, else on spawn).
-    local_player():Then(function(player)
-        ctx.player = player;
-
-        player:Subscribe("Possess", function(_self, pawn)
-            on_pawn_update(pawn, "character:possess");
-        end);
-
-        player:Subscribe("UnPossess", function(_self, pawn)
-            on_pawn_update(pawn, "character:unpossess");
-        end);
-
-        -- Package reload mid-game: a character may already be possessed.
-        on_pawn_update(player:GetControlledCharacter(), "character:possess");
+    ctx.player:Subscribe("Possess", function(_self, pawn)
+        on_pawn_update(pawn, "character:possess");
     end);
+
+    ctx.player:Subscribe("UnPossess", function(_self, pawn)
+        on_pawn_update(pawn, "character:unpossess");
+    end);
+
+    -- Package reload mid-game: a character may already be possessed.
+    on_pawn_update(ctx.player:GetControlledCharacter(), "character:possess");
 
     -- Server -> client: the player's data finished loading (mirror of the server bus).
     Events.SubscribeRemote("player:ready", function()

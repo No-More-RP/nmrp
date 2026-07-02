@@ -10,19 +10,20 @@
 --- and 'modules/...' paths below are correct. require()'s return type can't be
 --- inferred through the mandatory ".lua", so each one is typed by hand.
 
-local settings <const> = Server.GetCustomSettings(); ---@type table<string, ServerSetting>
+local custom_settings <const> = Server.GetCustomSettings(); ---@type table<string, any>
 local make_loader <const>  = require 'core/loader.lua'; ---@type fun(ctx: AppContext): Loader
 local events <const> = require 'core/bus.lua'; ---@type EventEmitter
-local Logger <const> = require 'lib/globals/logger.lua'; ---@type Logger
+local Logger <const> = require 'lib/classes/logger.lua'; ---@type Logger
+local SharedSettings <const> = require 'lib/constants/shared.settings.lua'; ---@type SharedSettings
 
 local db_logger <const> = Logger({
-    level = LogLevel.INFO,
+    level = Logger.LogLevel.INFO,
     prefix = "Norm"
 });
 
 local adapter <const> = Norm.adapters.nanos.new({
     engine = DatabaseEngine.MySQL,
-    connection = settings.database_connection,
+    connection = custom_settings.database_connection,
     pool_size = 20,
     on_ready = function(ok, err)
         if (not ok) then
@@ -36,12 +37,23 @@ local adapter <const> = Norm.adapters.nanos.new({
 local db <const> = Norm.new({
     adapter = adapter,
     logger = function(level, message)
-        db_logger:log(LogLevel[level] or LogLevel.INFO, message);
+        db_logger:log(Logger.LogLevel[level] or Logger.LogLevel.INFO, message);
     end,
     log = false,
     queue_until_ready = true,
     promise = Norm.promise.from_class(Promise)
 });
+
+local settings <const> = {
+    [SharedSettings.DEBUG] = custom_settings.debug or false,
+    [SharedSettings.MODE] = custom_settings.mode or 'production'
+}; ---@type table<SharedSettings, any> key -> setting
+
+for key, value in pairs(settings) do
+    Server.SetValue(key, value, true);
+end
+
+DEV_MODE = settings.mode == 'development';
 
 --- The application container: the single object passed to every module. Models and
 --- services populate themselves into it during boot; events is the cross-module bus.
@@ -51,20 +63,35 @@ local db <const> = Norm.new({
 ---@field services table<string, any>
 ---@field config table
 ---@field events EventEmitter
----@field settings table<string, ServerSetting>
+---@field settings table<string, any>
 ---@field logger Logger
 local ctx <const> = {
-    db       = db,
+    db = db,
     models   = {},
     services = {},
     config   = {},
-    events   = events,
+    events = events,
     settings = settings,
-    logger  = Logger({
-        level = LogLevel.INFO,
-        prefix = "Application"
-    })
+    logger = logger:child('Application')
 };
+
+---@param environment 'development' | 'production'
+local function set_logger_env(environment)
+    local dev <const> = environment == 'development';
+    logger:set_level(dev and Logger.LogLevel.DEBUG or Logger.LogLevel.INFO)
+        :set_trace(ctx.settings.debug);
+end
+
+set_logger_env(settings.mode);
+
+Server.Subscribe("ValueChange", function(key, value)
+    settings[key] = value;
+    ctx.logger:info("setting changed: %s = %s", tostring(key), tostring(value));
+    if (key ~= SharedSettings.MODE) then return; end
+    ctx.logger:info("environment mode changed to '%s'", tostring(value));
+    DEV_MODE = value == 'development';
+    set_logger_env(value);
+end);
 
 local loader <const> = make_loader(ctx);
 
@@ -72,13 +99,15 @@ local loader <const> = make_loader(ctx);
 local player_module <const>  = require 'modules/player/player.module.lua';   ---@type AppModule
 local economy_module <const> = require 'modules/economy/economy.module.lua'; ---@type AppModule
 
+local ctx_promise <const> = async(function() return loader.boot(player_module, economy_module); end);
+
 -- Expose the app to addon packages through the exported NMRP global (Package.Export in
 -- Shared/Index.lua). An addon that depends on nmrp sees these injected as globals.
 NMRP.ctx = ctx;
 
 --- Resolves to `ctx` once every core module is booted (models -> services -> controllers)
 --- and the schema is synced. Starting the boot here is what starts the whole app.
-NMRP.ready = async(function() return loader.boot(player_module, economy_module); end);
+NMRP.ready = async(function() return ctx_promise:await(); end);
 
 --- Register one or more addon modules from another package. Waits for the core to be ready,
 --- then wires the new modules and syncs their tables. Returns a Promise resolving to `ctx`,
@@ -91,11 +120,10 @@ NMRP.ready = async(function() return loader.boot(player_module, economy_module);
 ---@vararg AppModule
 ---@return Promise
 function NMRP.register(...)
-    local mods <const> = { ... }; ---@type AppModule[]
-    return async(function()
+    return async(function(...)
         NMRP.ready:await();
-        return loader.register(table.unpack(mods));
-    end);
+        return loader.register(...);
+    end, ...);
 end
 
 Package.Export("NMRP", NMRP);

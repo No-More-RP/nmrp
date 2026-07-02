@@ -19,8 +19,8 @@ return function(ctx)
     -- Write-behind: persist buffered balances + ledger rows on an interval and on
     -- shutdown. A shorter window means less lost on a crash (money flushes faster than
     -- the player world-state autosave). Player disconnect flushes via the service hook.
-    Timer.SetInterval(threadify(economy.flush), 5000 --[[ flush window (ms) ]]);
-    Package.Subscribe("Unload", threadify(economy.flush));
+    Timer.SetInterval(economy.flush_async, 5000 --[[ flush window (ms) ]]);
+    Package.Subscribe("Unload", economy.flush_async);
 
     command({
         name = "cash",

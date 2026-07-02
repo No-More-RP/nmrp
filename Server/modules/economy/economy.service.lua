@@ -236,6 +236,41 @@ return function(ctx)
         return #txs;
     end
 
+    --- Flush the write-behind buffer without blocking: snapshot the dirty accounts and
+    --- buffered ledger rows, then write them all in parallel (in flight together, callback
+    --- on completion). It snapshots before starting, so anything mutated during the flush
+    --- lands in the next batch. The number of ledger rows written (0 if nothing was pending)
+    --- is delivered to `callback`. Non-blocking, so it is safe as a Timer / engine callback.
+    ---
+    --- ```lua
+    --- economy.flush_async(function(written)
+    ---     print("flushed", written, "ledger rows");
+    --- end); -- force durability after a critical operation
+    --- ```
+    ---@param callback fun(written: integer)? Receives the number of ledger rows written (0 if nothing was pending)
+    ---@return void
+    function service.flush_async(callback)
+        if (next(dirty) == nil and pending_tx[1] == nil) then
+            if (callback) then callback(0); end
+            return;
+        end
+        local accounts <const> = dirty;
+        local txs <const> = pending_tx;
+        dirty = {};
+        pending_tx = {};
+
+        local promises <const> = {}; ---@type NormPromise[]
+        for _, account in pairs(accounts) do
+            promises[#promises + 1] = account:save();
+        end
+        for i = 1, #txs do
+            promises[#promises + 1] = Transactions:create(txs[i]);
+        end
+        Promise.all(promises):Then(function()
+            if (callback) then callback(#txs); end
+        end);
+    end
+
     -- Lifecycle: ensure/cache the character's cash account on load (owner = the
     -- character, not the player account); flush then drop on release so the leaving
     -- player's buffered money is persisted.

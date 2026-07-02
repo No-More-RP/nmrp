@@ -28,6 +28,9 @@ return function(ctx)
     local modules <const> = {}; ---@type table<string, ClientAppModule> name -> descriptor
     local order <const> = {};   ---@type string[] registration order (tie-break)
     local booted <const> = {};  ---@type table<string, boolean> name -> wired (its 3 passes ran)
+    local boot_lock = false;    ---@type boolean
+
+    local logger <const> = ctx.logger:child('Loader');
 
     ---@param module ClientAppModule
     local function register(module)
@@ -67,8 +70,9 @@ return function(ctx)
     --- wire(sorted());
     --- ```
     ---@param names string[]
+    ---@param is_addon boolean
     ---@return void
-    local function wire(names)
+    local function wire(names, is_addon)
         for i = 1, #names do
             local module <const> = modules[names[i]];
             if (not booted[module.name] and module.view) then ctx.views[module.name] = module.view(ctx); end
@@ -81,7 +85,10 @@ return function(ctx)
             local module <const> = modules[names[i]];
             if (not booted[module.name] and module.controller) then module.controller(ctx); end
         end
-        for i = 1, #names do booted[names[i]] = true; end
+        for i = 1, #names do
+            logger:debug("started %smodule '^B%s^D'", is_addon and "addon " or "", names[i]);
+            booted[names[i]] = true;
+        end
     end
 
     --- Register every module, then boot them in dependency order: views first (into
@@ -93,11 +100,13 @@ return function(ctx)
     ---@vararg ClientAppModule
     ---@return ClientAppContext
     function loader.boot(...)
+        if (boot_lock) then error("client loader: boot() already called"); end
+        boot_lock = true;
         local list <const> = { ... }; ---@type ClientAppModule[]
         for i = 1, #list do register(list[i]); end
         local names <const> = sorted();
-        wire(names);
-        ctx.logger:info("booted ^G%d^D module(s)", #names);
+        wire(names, false);
+        logger:success("started ^G%d^D module(s)", #names);
         return ctx;
     end
 
@@ -114,8 +123,8 @@ return function(ctx)
         local list <const> = { ... }; ---@type ClientAppModule[]
         local added <const> = {}; ---@type string[]
         for i = 1, #list do register(list[i]); added[#added + 1] = list[i].name; end
-        wire(sorted());
-        ctx.logger:info("registered addon module(s): ^G%s^D", table.concat(added, ", "));
+        wire(sorted(), true);
+        logger:info("registered addon module(s): ^G%s^D", table.concat(added, ", "));
         return ctx;
     end
 

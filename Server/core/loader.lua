@@ -18,8 +18,6 @@
 ---   2. services   -> ctx.services[name] = mod.service(ctx)
 ---   3. controllers-> mod.controller(ctx)
 ---
----@alias ServerSetting { label: string, type: 'boolean' | 'text' | 'floating' | 'integer' | 'select', default: any, description?: string } | string
----
 ---@class AppModule
 ---@field name string
 ---@field depends? string[]
@@ -41,6 +39,8 @@ return function(ctx)
     local modules <const> = {}; ---@type table<string, AppModule> name -> descriptor
     local order <const> = {};   ---@type string[] registration order (tie-break)
     local booted <const> = {};  ---@type table<string, boolean> name -> wired (its 3 passes ran)
+    local boot_lock = false;    ---@type boolean
+
     local logger <const> = ctx.logger:child('Loader');
 
     --- Register a module descriptor. Duplicates are a hard error.
@@ -98,8 +98,9 @@ return function(ctx)
     --- wire(resolve_order());
     --- ```
     ---@param list AppModule[]
+    ---@param is_addon boolean
     ---@return void
-    local function wire(list)
+    local function wire(list, is_addon)
         for i = 1, #list do
             local mod <const> = list[i];
             if (not booted[mod.name] and mod.models) then ctx.models[mod.name] = mod.models(ctx.db); end
@@ -112,7 +113,10 @@ return function(ctx)
             local mod <const> = list[i];
             if (not booted[mod.name] and mod.controller) then mod.controller(ctx); end
         end
-        for i = 1, #list do booted[list[i].name] = true; end
+        for i = 1, #list do
+            logger:debug("started %smodule '^B%s^D'", is_addon and "addon " or "", list[i].name);
+            booted[list[i].name] = true;
+        end
     end
 
     --- Register the given (core) modules, then build the whole app: models, then services,
@@ -125,11 +129,13 @@ return function(ctx)
     ---@vararg AppModule
     ---@return AppContext ctx
     function loader.boot(...)
+        if (boot_lock) then error("loader: boot() already called"); end
+        boot_lock = true;
         for i = 1, select("#", ...) do register(select(i, ...)); end
         local sorted <const> = resolve_order();
-        wire(sorted);
+        wire(sorted, false);
         ctx.db:sync():await();
-        logger:info("booted ^G%d^D module(s)", #sorted);
+        logger:success("started ^G%d^D module(s)", #sorted);
         return ctx;
     end
 
@@ -150,7 +156,7 @@ return function(ctx)
             register(mod);
             names[#names + 1] = mod.name;
         end
-        wire(resolve_order());
+        wire(resolve_order(), true);
         ctx.db:sync():await();
         logger:info("registered addon module(s): ^G%s^D", table.concat(names, ", "));
         return ctx;

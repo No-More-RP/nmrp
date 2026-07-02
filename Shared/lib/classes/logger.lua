@@ -18,21 +18,10 @@
 --- for prefixed sub-loggers via logger:child("economy").
 
 local ansi <const> = require 'lib/constants/ansi.lua'; ---@type Ansi -- require-only palette
+local LogLevel <const> = require 'lib/constants/log.level.lua'; ---@type LogLevel -- require-only enum
 local getinfo <const> = debug.getinfo;
 local format <const> = string.format;
 local table_concat <const> = table.concat;
-
---- Minimum-severity thresholds. A message prints when its level >= logger.level.
---- Distinct numbers per level (even where severity is close) so tag lookup is 1:1.
----@enum LogLevel
-_G.LogLevel = {
-    DEBUG   = 10,
-    INFO    = 20,
-    SUCCESS = 25,
-    WARN    = 30,
-    ERROR   = 40,
-    FATAL   = 50,
-};
 
 --- Fixed-width (7-char) colored tag per level, so columns line up in the console.
 local tags <const> = {
@@ -74,6 +63,8 @@ end
 ---@field public prefix? string  label shown between the level tag and the message
 ---@field public level? LogLevel  minimum LogLevel to print (default LogLevel.DEBUG)
 ---@field public trace? boolean  append [source:line] of the call site (default: DEV_MODE)
+---@field public keep_level? boolean -- whether to inherit the parent's level or override it
+---@field public keep_trace? boolean -- whether to inherit the parent's trace or override it
 
 --- ANSI logger instance. Use the shared `logger` global, or construct one for a
 --- custom prefix/level.
@@ -84,13 +75,18 @@ end
 --- ```
 ---@class Logger : LightClass
 ---@field public prefix string
----@field public level integer
----@field public trace boolean
+---@field private level integer
+---@field private trace boolean
+---@field private keep_level boolean -- whether to inherit the parent's level or override it
+---@field private keep_trace boolean -- whether to inherit the parent's trace or override it
+---@field private childs Logger[] -- sub-loggers created via :child()
+---@field private parent Logger? -- the logger that created this one via :child()
 ---@overload fun(options: LoggerOptions?): Logger
 local Logger <const> = class.new("Logger");
 
 ---@static
 Logger.ANSI = ansi; ---@type Ansi -- static: expose the palette for custom colorization
+Logger.LogLevel = LogLevel; ---@type LogLevel -- static: expose the enum for custom level checks
 
 ---@alias LoggerColorCode '^b' | '^g' | '^y' | '^r' | '^m' | '^c' | '^w' | '^B' | '^G' | '^Y' | '^R' | '^M' | '^C' | '^W' | '^d' | '^D'
 
@@ -120,11 +116,10 @@ function Logger:__init(options)
     local opts <const> = type(options) == 'table' and options or {};
     self.prefix = opts.prefix or '';
     self.level  = opts.level or LogLevel.DEBUG;
-    if (opts.trace ~= nil) then
-        self.trace = opts.trace and true or false;
-    else
-        self.trace = _ENV.DEV_MODE and true or false;
-    end
+    self.keep_level = opts.keep_level and true or false;
+    self.keep_trace = opts.keep_trace and true or false;
+    self.trace = (opts.trace ~= nil and opts.trace) or (_ENV.DEV_MODE and true) or false;
+    self.childs = {};
 end
 
 --- Core writer: format the args, gate on the level threshold, then print the
@@ -243,6 +238,28 @@ function Logger:set_level(level)
         level = names[level:lower()] or self.level;
     end
     self.level = level;
+    for ref in pairs(self.childs) do
+        if (not self.childs[ref].keep_level) then
+            self.childs[ref]:set_level(self.level);
+        end
+    end
+    return self;
+end
+
+--- Set the trace flag (append [source:line] of the call site). Propagates to child loggers
+--- unless they were created with `keep_trace`.
+---
+--- ```lua
+--- logger:set_trace(true);
+--- ```
+---@param trace boolean
+function Logger:set_trace(trace)
+    self.trace = trace;
+    for ref in pairs(self.childs) do
+        if (not self.childs[ref].keep_trace) then
+            self.childs[ref]:set_trace(self.trace);
+        end
+    end
     return self;
 end
 
@@ -273,17 +290,29 @@ function Logger:child(prefix, options)
     local merged <const> = #self.prefix > 0 and (self.prefix .. ':' .. prefix) or prefix;
     local trace = self.trace;
     if (opts.trace ~= nil) then trace = opts.trace and true or false; end
-    return Logger({
+    local logger <const> = Logger({
         prefix = merged,
         level  = opts.level or self.level,
         trace  = trace,
     });
+    logger.parent = self;
+    self.childs[format('%p', logger)] = logger;
+    return logger;
 end
 
-_ENV.Logger = Logger;
+function Logger:__tostring()
+    return format("Logger(prefix='%s', level=%d, trace=%s)", self.prefix, self.level, tostring(self.trace));
+end
 
---- Default shared instance. Server terminal in color, client F8 stripped.
----@type Logger
-logger = Logger({ level = LogLevel.DEBUG });
+function Logger:__gc()
+    if (self.parent) then
+        self.parent.childs[format('%p', self)] = nil;
+    end
+    for ref in pairs(self.childs) do
+        if (self.childs[ref]) then
+            self.childs[ref].parent = nil;
+        end
+    end
+end
 
 return Logger;

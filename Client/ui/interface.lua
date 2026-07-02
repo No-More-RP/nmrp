@@ -16,7 +16,7 @@
 --- ```
 local EventEmitter <const> = require 'lib/classes/event-emitter.lua'; ---@type EventEmitter
 local hooks <const> = require 'lib/classes/hook.lua'; ---@type HookModule
-local Logger <const> = require 'lib/globals/logger.lua'; ---@type Logger
+local Logger <const> = require 'lib/classes/logger.lua'; ---@type Logger
 
 ---@alias RouteOptions { focus?: boolean, mouse?: boolean }
 

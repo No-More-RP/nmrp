@@ -1,29 +1,28 @@
---- inventory.controller.lua: (C) the client inventory module. Wires the inventory page: the
---- actions (JS -> Lua), the toggle key, and the initial demo contents.
+--- inventory.controller.lua: (C) the client inventory module. Owns its view's internal
+--- wiring: the actions (JS -> Lua), the toggle key, and the demo contents. Other modules
+--- update the panel through the narrow ctx.services.inventory facade.
 ---
 --- ```lua
 --- require 'modules/inventory/inventory.controller.lua' (ctx);
 --- ```
-local InventoryView <const> = require 'inventory.view.lua'; ---@type InventoryUI
-
 ---@param ctx ClientAppContext
 ---@return void
 return function(ctx)
-    local inventory <const> = InventoryView.get(ctx.ui);
+    local inventory <const> = ctx.views.inventory; ---@type InventoryView
     local ui <const> = ctx.ui;
 
     -- JS -> Lua actions. Closing the page is handled by the router (route:sync).
-    ui:subscribe("inventory:use", function(slot) inventory:use(slot); end);
-    ui:subscribe("inventory:drop", function(slot, amount) inventory:drop(slot, amount); end);
-    ui:subscribe("inventory:move", function(from, to) inventory:move(from, to); end);
+    ui:subscribe("inventory:use", function(slot) inventory.use(slot); end);
+    ui:subscribe("inventory:drop", function(slot, amount) inventory.drop(slot, amount); end);
+    ui:subscribe("inventory:move", function(from, to) inventory.move(from, to); end);
 
     -- Toggle the panel on I.
     Input.Subscribe("KeyDown", function(key_name)
-        if (key_name == "I") then inventory:toggle(); end
+        if (key_name == "I") then inventory.toggle(); end
     end);
 
     -- Demo contents until real gameplay drives them. REPLACE.
-    inventory:set({
+    inventory.set({
         maxSlots = 20,
         maxWeight = 50,
         items = {

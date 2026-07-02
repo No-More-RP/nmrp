@@ -1,8 +1,7 @@
 --- app.lua: client bootstrap. Builds the client context (WebUI + Interface manager, the
---- domain bus, the local player, the locale, the logger), then boots the client module
---- controllers declaratively. Counterpart of Server/app.lua: build a ctx, then boot(...).
---- Each controller wires its own remotes / bus subscriptions / input / view; nothing is
---- wired imperatively here.
+--- domain bus, the local player, the locale, the logger, the DI service container), then
+--- boots the client modules through the loader. Counterpart of Server/app.lua: build a ctx,
+--- then boot(...). Each module wires its own service (into ctx.services) and controller.
 ---
 --- Source: nmrp-ui repo (pnpm dev -> http://localhost:5173). Build: dist/, deployed to
 --- Client/web by the nmrp-ui CI. The file:/// path resolves relative to Client/, so
@@ -14,16 +13,16 @@
 
 local Interface <const> = require 'ui/interface.lua'; ---@type Interface
 local bus <const> = require 'core/bus.lua';           ---@type EventEmitter
-local boot <const> = require 'core/loader.lua';       ---@type fun(ctx: ClientAppContext, ...: fun(ctx: ClientAppContext): void): void
+local make_loader <const> = require 'core/loader.lua'; ---@type fun(ctx: ClientAppContext): { boot: fun(...: ClientAppModule): ClientAppContext }
 
--- Register client modules here. Adding one = create modules/<name>/<name>.controller.lua
--- and add a line to boot(...) below.
-local player_controller <const>    = require 'modules/player/player.controller.lua';       ---@type fun(ctx: ClientAppContext): void
-local command_controller <const>   = require 'modules/command/command.controller.lua';     ---@type fun(ctx: ClientAppContext): void
-local stamina_controller <const>   = require 'modules/stamina/stamina.controller.lua';     ---@type fun(ctx: ClientAppContext): void
-local hud_controller <const>       = require 'modules/hud/hud.controller.lua';             ---@type fun(ctx: ClientAppContext): void
-local chat_controller <const>      = require 'modules/chat/chat.controller.lua';           ---@type fun(ctx: ClientAppContext): void
-local inventory_controller <const> = require 'modules/inventory/inventory.controller.lua'; ---@type fun(ctx: ClientAppContext): void
+-- Register client modules here. Adding one = create modules/<name>/<name>.module.lua and
+-- add a line to boot(...) below.
+local player_module <const>    = require 'modules/player/player.module.lua';       ---@type ClientAppModule
+local command_module <const>   = require 'modules/command/command.module.lua';     ---@type ClientAppModule
+local stamina_module <const>   = require 'modules/stamina/stamina.module.lua';     ---@type ClientAppModule
+local hud_module <const>       = require 'modules/hud/hud.module.lua';             ---@type ClientAppModule
+local chat_module <const>      = require 'modules/chat/chat.module.lua';           ---@type ClientAppModule
+local inventory_module <const> = require 'modules/inventory/inventory.module.lua'; ---@type ClientAppModule
 
 --- Set to `true` to load the Vite dev server directly IN GAME (component hot-reload
 --- without a rebuild). Run `pnpm dev` in the nmrp-ui repo first.
@@ -43,30 +42,34 @@ local MainUI <const> = WebUI(
 -- Push the locale store to the WebUI and keep it in sync. The page consumes it via locale.js.
 Locale.Attach(MainUI);
 
---- The client application context: the single object handed to every module controller.
+--- The client application context: the single object handed to every module (service +
+--- controller). Modules reach each other through ctx.services.<name>.
 ---@class ClientAppContext
----@field ui Interface         the WebUI manager (buffered send, focus, router)
----@field events EventEmitter  the client domain bus (player:ready, character:possess, ...)
----@field player Player?       the local player (nil until the player controller resolves it)
----@field locale any           the nmrp locale namespace
----@field logger Logger        the client logger (F8 console)
+---@field ui Interface                  the WebUI manager (buffered send, focus, router)
+---@field events EventEmitter           the client domain bus (player:ready, character:possess, ...)
+---@field player Player?                the local player (nil until the player module resolves it)
+---@field locale any                    the nmrp locale namespace
+---@field logger Logger                 the client logger (F8 console)
+---@field views table<string, any>      view container: module name -> its view (WebUI facade)
+---@field services table<string, any>   DI container: module name -> its service
 ---@type ClientAppContext
 local ctx <const> = {
-    ui     = Interface.get(MainUI),
-    events = bus,
-    player = nil,
-    locale = Locale.Namespace("nmrp"),
-    logger = Logger({ level = LogLevel.INFO, prefix = "CApplication" }),
+    ui       = Interface.get(MainUI),
+    events   = bus,
+    player   = nil,
+    locale   = Locale.Namespace("nmrp"),
+    logger   = Logger({ level = LogLevel.INFO, prefix = "CApplication" }),
+    views    = {},
+    services = {},
 };
 
-boot(
-    ctx,
-    player_controller,
-    command_controller,
-    stamina_controller,
-    hud_controller,
-    chat_controller,
-    inventory_controller
+make_loader(ctx).boot(
+    player_module,
+    command_module,
+    stamina_module,
+    hud_module,
+    chat_module,
+    inventory_module
 );
 
 return MainUI;

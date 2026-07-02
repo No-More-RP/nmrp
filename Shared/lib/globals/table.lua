@@ -1,6 +1,6 @@
 ---@param object table
 ---@return number
-function table.size(object)
+function _G.table.size(object)
     local count = 0;
     for _ in pairs(object) do
         count = count + 1;
@@ -11,7 +11,7 @@ end
 ---@param object table
 ---@param value any
 ---@return boolean
-function table.contains(object, value)
+function _G.table.contains(object, value)
     if (type(object) ~= "table") then
         return false;
     end

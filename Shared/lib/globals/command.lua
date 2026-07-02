@@ -143,6 +143,7 @@ end
 ---@class CommandLib
 ---@overload fun(data: CommandConstructor): void
 command = setmetatable({}, {
+    __name = "CommandLib",
     __call = function(_, data)
         return register_command(data.name, data.callback, data.description, data.parameters, IS_CLIENT);
     end,

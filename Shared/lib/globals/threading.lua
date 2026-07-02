@@ -18,7 +18,7 @@ end
 --- ```
 ---@param fn function The function to run in the new coroutine
 ---@vararg any The arguments to pass to the function when it is called
-function CreateThread(fn, ...)
+function _G.CreateThread(fn, ...)
     local thread <const> = coroutine.create(fn);
     resume_thread(thread, ...);
     return thread;
@@ -31,7 +31,7 @@ end
 --- Wait(500); -- yield the current coroutine for 500ms
 --- ```
 ---@param ms number The amount of milliseconds to wait before resuming the coroutine
-function Wait(ms)
+function _G.Wait(ms)
     assert(type(ms) == "number", "Wait: ms must be a number");
     local thread <const>, is_main_thread <const> = coroutine.running();
     assert(thread, "Wait: must be called from a coroutine");
@@ -52,7 +52,7 @@ local create_thread <const> = CreateThread;
 --- ```
 ---@param fn function The function to wrap
 ---@return function The wrapped function
-function threadify(fn)
+function _G.threadify(fn)
     return function(...)
         create_thread(fn, ...);
     end

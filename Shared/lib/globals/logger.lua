@@ -25,7 +25,7 @@ local table_concat <const> = table.concat;
 --- Minimum-severity thresholds. A message prints when its level >= logger.level.
 --- Distinct numbers per level (even where severity is close) so tag lookup is 1:1.
 ---@enum LogLevel
-LogLevel = {
+_G.LogLevel = {
     DEBUG   = 10,
     INFO    = 20,
     SUCCESS = 25,

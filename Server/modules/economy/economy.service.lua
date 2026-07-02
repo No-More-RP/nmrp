@@ -24,17 +24,6 @@
 --- connector adds real transactions when atomicity is required.
 ---
 ---@alias TxOptions { reason?: string, actor?: string, counterparty?: integer }
----@class EconomyService
----@field cash fun(player: Player): integer
----@field cash_account fun(player: Player): NormRecord|nil
----@field accounts_of fun(owner_type: string, owner_id: integer): NormRecord[]
----@field open_account fun(owner_type: string, owner_id: integer, account_type: string, label: string?): NormRecord
----@field balance fun(account: NormRecord?): integer
----@field deposit fun(account: NormRecord, amount: integer, opts: TxOptions?): integer
----@field withdraw fun(account: NormRecord, amount: integer, opts: TxOptions?): boolean
----@field transfer fun(from: NormRecord, to: NormRecord, amount: integer, opts: TxOptions?): boolean
----@field history fun(account: NormRecord, limit: integer?): NormRecord[]
----@field flush fun(): integer
 
 --- Build the economy service.
 ---
@@ -80,7 +69,8 @@ return function(ctx)
         };
     end
 
-    local service <const> = {}; ---@type EconomyService
+    ---@class EconomyService
+    local service <const> = {};
 
     --- Current cash on hand for a player (0 if offline / no cash account cached).
     ---

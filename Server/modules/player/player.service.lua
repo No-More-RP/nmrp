@@ -32,7 +32,7 @@ return function(ctx)
     local cache_account_ids <const> = {}; ---@type table<string, Player> -- account_id -> player
 
     ---@class PlayerService
-    local service <const> = {}; ---@type PlayerService
+    local service <const> = {};
     service.store = store; -- exposed for modules that want the cached records directly
     service.logger = logger; -- exposed for modules that want to log player lifecycle events
 

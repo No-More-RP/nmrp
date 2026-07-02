@@ -13,82 +13,91 @@
 
 local ESC <const> = string.char(27); -- \27 == \x1b == ESC
 
----@class Ansi
-local ansi <const> = {};
+---@class AnsiColor
+local ansi_colors <const> = {};
 
-ansi.ESC = ESC;         -- the raw escape byte
-ansi.CSI = ESC .. '[';  -- Control Sequence Introducer
+---@class Ansi : AnsiColor
+---@overload fun(color: AnsiColor | string, text: any): string
+local ansi <const> = setmetatable({}, {
+    __index = ansi_colors;
+    __call = function(self, color, text)
+        return self.paint(color, text);
+    end;
+});
+
+ansi_colors.ESC = ESC;         -- the raw escape byte
+ansi_colors.CSI = ESC .. '[';  -- Control Sequence Introducer
 
 -- reset
-ansi.RESET      = ESC .. '[0m';
-ansi.CLEAR      = ansi.RESET; -- alias
+ansi_colors.RESET      = ESC .. '[0m';
+ansi_colors.CLEAR      = ansi_colors.RESET; -- alias
 
 -- styles
-ansi.BOLD       = ESC .. '[1m';
-ansi.DIM        = ESC .. '[2m';
-ansi.ITALIC     = ESC .. '[3m';
-ansi.UNDERLINE  = ESC .. '[4m';
-ansi.BLINK      = ESC .. '[5m';
-ansi.BLINK_FAST = ESC .. '[6m';
-ansi.INVERSE    = ESC .. '[7m';
-ansi.HIDDEN     = ESC .. '[8m';
-ansi.STRIKE     = ESC .. '[9m';
+ansi_colors.BOLD       = ESC .. '[1m';
+ansi_colors.DIM        = ESC .. '[2m';
+ansi_colors.ITALIC     = ESC .. '[3m';
+ansi_colors.UNDERLINE  = ESC .. '[4m';
+ansi_colors.BLINK      = ESC .. '[5m';
+ansi_colors.BLINK_FAST = ESC .. '[6m';
+ansi_colors.INVERSE    = ESC .. '[7m';
+ansi_colors.HIDDEN     = ESC .. '[8m';
+ansi_colors.STRIKE     = ESC .. '[9m';
 
 -- style resets
-ansi.NO_BOLD      = ESC .. '[22m'; -- also clears dim
-ansi.NO_DIM       = ESC .. '[22m';
-ansi.NO_ITALIC    = ESC .. '[23m';
-ansi.NO_UNDERLINE = ESC .. '[24m';
-ansi.NO_BLINK     = ESC .. '[25m';
-ansi.NO_INVERSE   = ESC .. '[27m';
-ansi.NO_HIDDEN    = ESC .. '[28m';
-ansi.NO_STRIKE    = ESC .. '[29m';
+ansi_colors.NO_BOLD      = ESC .. '[22m'; -- also clears dim
+ansi_colors.NO_DIM       = ESC .. '[22m';
+ansi_colors.NO_ITALIC    = ESC .. '[23m';
+ansi_colors.NO_UNDERLINE = ESC .. '[24m';
+ansi_colors.NO_BLINK     = ESC .. '[25m';
+ansi_colors.NO_INVERSE   = ESC .. '[27m';
+ansi_colors.NO_HIDDEN    = ESC .. '[28m';
+ansi_colors.NO_STRIKE    = ESC .. '[29m';
 
 -- foreground (normal)
-ansi.BLACK   = ESC .. '[30m';
-ansi.RED     = ESC .. '[31m';
-ansi.GREEN   = ESC .. '[32m';
-ansi.YELLOW  = ESC .. '[33m';
-ansi.BLUE    = ESC .. '[34m';
-ansi.MAGENTA = ESC .. '[35m';
-ansi.CYAN    = ESC .. '[36m';
-ansi.WHITE   = ESC .. '[37m';
-ansi.DEFAULT = ESC .. '[39m'; -- reset foreground only
+ansi_colors.BLACK   = ESC .. '[30m';
+ansi_colors.RED     = ESC .. '[31m';
+ansi_colors.GREEN   = ESC .. '[32m';
+ansi_colors.YELLOW  = ESC .. '[33m';
+ansi_colors.BLUE    = ESC .. '[34m';
+ansi_colors.MAGENTA = ESC .. '[35m';
+ansi_colors.CYAN    = ESC .. '[36m';
+ansi_colors.WHITE   = ESC .. '[37m';
+ansi_colors.DEFAULT = ESC .. '[39m'; -- reset foreground only
 
 -- foreground (bright)
-ansi.BRIGHT_BLACK   = ESC .. '[90m';
-ansi.GRAY           = ansi.BRIGHT_BLACK; -- alias
-ansi.GREY           = ansi.BRIGHT_BLACK; -- alias
-ansi.BRIGHT_RED     = ESC .. '[91m';
-ansi.BRIGHT_GREEN   = ESC .. '[92m';
-ansi.BRIGHT_YELLOW  = ESC .. '[93m';
-ansi.BRIGHT_BLUE    = ESC .. '[94m';
-ansi.BRIGHT_MAGENTA = ESC .. '[95m';
-ansi.BRIGHT_CYAN    = ESC .. '[96m';
-ansi.BRIGHT_WHITE   = ESC .. '[97m';
+ansi_colors.BRIGHT_BLACK   = ESC .. '[90m';
+ansi_colors.GRAY           = ansi_colors.BRIGHT_BLACK; -- alias
+ansi_colors.GREY           = ansi_colors.BRIGHT_BLACK; -- alias
+ansi_colors.BRIGHT_RED     = ESC .. '[91m';
+ansi_colors.BRIGHT_GREEN   = ESC .. '[92m';
+ansi_colors.BRIGHT_YELLOW  = ESC .. '[93m';
+ansi_colors.BRIGHT_BLUE    = ESC .. '[94m';
+ansi_colors.BRIGHT_MAGENTA = ESC .. '[95m';
+ansi_colors.BRIGHT_CYAN    = ESC .. '[96m';
+ansi_colors.BRIGHT_WHITE   = ESC .. '[97m';
 
 -- background (normal)
-ansi.BG_BLACK   = ESC .. '[40m';
-ansi.BG_RED     = ESC .. '[41m';
-ansi.BG_GREEN   = ESC .. '[42m';
-ansi.BG_YELLOW  = ESC .. '[43m';
-ansi.BG_BLUE    = ESC .. '[44m';
-ansi.BG_MAGENTA = ESC .. '[45m';
-ansi.BG_CYAN    = ESC .. '[46m';
-ansi.BG_WHITE   = ESC .. '[47m';
-ansi.BG_DEFAULT = ESC .. '[49m'; -- reset background only
+ansi_colors.BG_BLACK   = ESC .. '[40m';
+ansi_colors.BG_RED     = ESC .. '[41m';
+ansi_colors.BG_GREEN   = ESC .. '[42m';
+ansi_colors.BG_YELLOW  = ESC .. '[43m';
+ansi_colors.BG_BLUE    = ESC .. '[44m';
+ansi_colors.BG_MAGENTA = ESC .. '[45m';
+ansi_colors.BG_CYAN    = ESC .. '[46m';
+ansi_colors.BG_WHITE   = ESC .. '[47m';
+ansi_colors.BG_DEFAULT = ESC .. '[49m'; -- reset background only
 
 -- background (bright)
-ansi.BG_BRIGHT_BLACK   = ESC .. '[100m';
-ansi.BG_GRAY           = ansi.BG_BRIGHT_BLACK; -- alias
-ansi.BG_GREY           = ansi.BG_BRIGHT_BLACK; -- alias
-ansi.BG_BRIGHT_RED     = ESC .. '[101m';
-ansi.BG_BRIGHT_GREEN   = ESC .. '[102m';
-ansi.BG_BRIGHT_YELLOW  = ESC .. '[103m';
-ansi.BG_BRIGHT_BLUE    = ESC .. '[104m';
-ansi.BG_BRIGHT_MAGENTA = ESC .. '[105m';
-ansi.BG_BRIGHT_CYAN    = ESC .. '[106m';
-ansi.BG_BRIGHT_WHITE   = ESC .. '[107m';
+ansi_colors.BG_BRIGHT_BLACK   = ESC .. '[100m';
+ansi_colors.BG_GRAY           = ansi_colors.BG_BRIGHT_BLACK; -- alias
+ansi_colors.BG_GREY           = ansi_colors.BG_BRIGHT_BLACK; -- alias
+ansi_colors.BG_BRIGHT_RED     = ESC .. '[101m';
+ansi_colors.BG_BRIGHT_GREEN   = ESC .. '[102m';
+ansi_colors.BG_BRIGHT_YELLOW  = ESC .. '[103m';
+ansi_colors.BG_BRIGHT_BLUE    = ESC .. '[104m';
+ansi_colors.BG_BRIGHT_MAGENTA = ESC .. '[105m';
+ansi_colors.BG_BRIGHT_CYAN    = ESC .. '[106m';
+ansi_colors.BG_BRIGHT_WHITE   = ESC .. '[107m';
 
 --- Build a raw SGR sequence from numeric codes.
 ---
@@ -154,12 +163,18 @@ end
 ---
 --- ```lua
 --- print(ansi.paint(ansi.GREEN, "ok")); -- green "ok" then reset
+--- print(ansi.paint(ansi.BOLD .. ansi.UNDERLINE .. ansi.RED, "boom")); -- bold underline red "boom" then reset
+--- print(ansi.paint(ansi.rgb(255, 128, 0), "orange")); -- orange "orange" then reset
+--- print(ansi.paint(ansi.fg256(208), "orange-ish")); -- 256-color orange-ish "orange-ish" then reset
+--- print(ansi.paint(ansi.bg_rgb(20, 20, 40), "navy bg")); -- navy background "navy bg" then reset
+--- print(ansi.paint(ansi.BOLD .. ansi.bg_rgb(20, 20, 40) .. ansi.rgb(255, 128, 0), "bold orange on navy")); -- bold orange on navy background then reset
+--- print(ansi.paint('RED', "boom")); -- string key lookup works too
 --- ```
----@param color string
+---@param color string | Ansi
 ---@param text any
 ---@return string
 function ansi.paint(color, text)
-    return color .. tostring(text) .. ansi.RESET;
+    return (ansi_colors[color] or color) .. tostring(text) .. ansi_colors.RESET;
 end
 
 --- Strip every SGR escape sequence from `s`, for a sink that does not understand

@@ -23,8 +23,6 @@
 ---@alias AppContext { db: NormOrm, models: table<string, any>, services: table<string, any>, config: table, events: EventEmitter, settings: table<string, ServerSetting>, logger: Logger }
 ---@alias Loader { boot: fun(...: AppModule): AppContext }
 
-local ansi <const> = require 'lib/constants/ansi.lua'; ---@type Ansi
-
 --- Build a loader bound to an app context.
 ---
 --- ```lua
@@ -117,7 +115,7 @@ return function(ctx)
 
         ctx.db:sync():await();
 
-        logger:info("booted %s%d%s module(s)", ansi.GREEN, #sorted, ansi.RESET);
+        logger:info("booted ^G%d^D module(s)", #sorted);
         return ctx;
     end
 

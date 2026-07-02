@@ -12,15 +12,6 @@
 local make_store <const> = require 'player.store.lua'; ---@type fun(models: PlayerModels): PlayerStore
 local hooks <const> = require 'lib/classes/hook.lua'; ---@type HookModule
 
----@class PlayerService
----@field logger Logger
----@field store PlayerStore
----@field on_loading fun(fn: fun(player: Player, player_data: NormRecord, character_data: NormRecord)): PlayerService
----@field on_releasing fun(fn: fun(player: Player)): PlayerService
----@field load fun(player: Player, defaults: table?): NormRecord, NormRecord
----@field release fun(player: Player): void
----@field save_all fun(): integer
-
 --- Build the player service.
 ---
 --- ```lua
@@ -37,17 +28,10 @@ return function(ctx)
     local loading <const> = hooks.Hook();   -- taps: (player, player_data, character_data)
     local releasing <const> = hooks.Hook(); -- taps: (player)
 
-    -- Dev mode: offline instances all connect with the SAME accountId, so suffix it with
-    -- the per-connection entity id (player:GetID()) to give each instance its own players
-    -- row. Prod uses the real accountId unchanged (it is already globally unique).
-    local is_dev <const> = ctx.settings.mode == "development";
+    local cache_ids <const> = {}; ---@type table<integer, Player> -- db_id -> player
+    local cache_account_ids <const> = {}; ---@type table<string, Player> -- account_id -> player
 
-    -- The DB identity key for a player (see is_dev above).
-    local function account_key(player)
-        if (is_dev) then return player:GetAccountID() .. ":" .. player:GetID(); end
-        return player:GetAccountID();
-    end
-
+    ---@class PlayerService
     local service <const> = {}; ---@type PlayerService
     service.store = store; -- exposed for modules that want the cached records directly
     service.logger = logger; -- exposed for modules that want to log player lifecycle events
@@ -80,10 +64,12 @@ return function(ctx)
     ---@param defaults table? Seed values for the character row on first creation
     ---@return NormRecord player_data, NormRecord character_data
     function service.load(player, defaults)
-        local player_data <const>, character_data <const> = store.load(player, account_key(player), defaults);
+        local account_id <const> = player:GetAccountID();
+        local player_data <const>, character_data <const> = store.load(player, account_id, defaults);
         player.db_id = player_data.id;
         loading:call(player, player_data, character_data); -- awaited: all per-player data ready
-        player:Create();
+        cache_ids[player_data.id] = player;
+        cache_account_ids[account_id] = player;
         events:emit("player:ready", player, player_data, character_data); -- fire-and-forget (HUD, ...)
         return player_data, character_data;
     end
@@ -98,6 +84,11 @@ return function(ctx)
     function service.release(player)
         releasing:call(player); -- awaited: modules persist before we drop the cache
         store.release(player);
+        local account_id <const> = player:GetAccountID();
+        local character <const> = player:GetControlledCharacter();
+        if (character and character:IsValid()) then character:Destroy(); end
+        cache_ids[player.db_id] = nil;
+        cache_account_ids[account_id] = nil;
     end
 
     --- Save every online player (autosave). Coroutine-only. Returns the count.
@@ -108,6 +99,26 @@ return function(ctx)
     ---@async
     ---@return integer
     function service.save_all() return store.save_all(); end
+
+    --- Lookup a player by their database ID.
+    ---
+    --- ```lua
+    --- local players <const> = ctx.services.player;
+    --- local player <const> = players.get(db_id);
+    --- ```
+    ---@param db_id integer
+    ---@return Player|nil
+    function service.get(db_id) return cache_ids[db_id]; end
+
+    --- Lookup a player by their account ID.
+    ---
+    --- ```lua
+    --- local players <const> = ctx.services.player;
+    --- local player <const> = players.get_by_account(account_id);
+    --- ```
+    ---@param account_id string
+    ---@return Player|nil
+    function service.get_by_account(account_id) return cache_account_ids[account_id]; end
 
     return service;
 end

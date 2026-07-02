@@ -11,7 +11,9 @@ return function(ctx)
     local players <const> = ctx.services.player; ---@type PlayerService
     local spawn_points <const> = Server.GetMapSpawnPoints();
     local fallback_spawn_point <const> = { location = Vector(0, 0, 300), rotation = Rotator(0, 0, 0) };
+    local default_mesh <const> = "nanos-world::SK_Mannequin";
     local logger <const> = players.logger;
+    local command_logger <const> = logger:child('Command');
 
     logger:debug("spawn points: %d, fallback: %s", #spawn_points, JSON.stringify(fallback_spawn_point));
 
@@ -24,26 +26,26 @@ return function(ctx)
     ---@async
     ---@param player Player
     local function spawn(player)
-        logger:debug("spawning player %s", player:GetAccountID());
+        local account_id <const> = player:GetAccountID();
+        logger:debug("spawning player ^y%s^D", account_id);
         local spawn_point <const> = #spawn_points > 0 and spawn_points[math.random(1, #spawn_points)] or fallback_spawn_point;
         local location , rotation = spawn_point.location, spawn_point.rotation;
-        local character <const> = Character(location, rotation);
         local _, character_data <const> = players.load(player, {
-            model = character:GetMesh(),
+            model = default_mesh,
             location = { X = location.X, Y = location.Y, Z = location.Z },
             rotation = { Pitch = rotation.Pitch, Yaw = rotation.Yaw, Roll = rotation.Roll },
         });
 
-        logger:debug("spawned player %s character's at %s %s", player:GetAccountID(), JSON.stringify(location), JSON.stringify(rotation));
+        logger:info("player ^y%s^D loaded: db_id=^y%s^D, character_id=^y%s^D", account_id, player.db_id, character_data.id);
 
         location, rotation = Vector(character_data.location.X, character_data.location.Y, character_data.location.Z),
             Rotator(character_data.rotation.Pitch, character_data.rotation.Yaw, character_data.rotation.Roll);
 
-        character:SetMesh(character_data.model);
+        local character <const> = Character(location, rotation, character_data.model, CollisionType.Auto, true, 100);
         character:SetLocation(location);
         character:SetRotation(rotation);
         player:Possess(character);
-        logger:success("spawned player %s character's at %s %s", player:GetAccountID(), JSON.stringify(location), JSON.stringify(rotation));
+        logger:success("spawned player ^y%s^D character's", account_id);
     end
 
     Player.Subscribe("Spawn", threadify(spawn));
@@ -67,14 +69,24 @@ return function(ctx)
     -- Autosave: anti-crash net. Dirty-tracked, so unchanged rows cost nothing.
     Timer.SetInterval(threadify(function()
         local n <const> = players.save_all();
-        if (n > 0) then logger:success("autosaved %d player(s)", n); end
+        if (n > 0) then logger:success("autosaved ^B%s^D player(s)", n); end
     end), 300000 --[[ DEV: lower to 10000 while testing ]]);
 
     -- Dev: respawn everyone. threadify'd because spawn() awaits the DB load.
     local respawn_all <const> = threadify(function()
         local connected <const> = Player.GetAll(); ---@type Player[]
-        for i = 1, #connected do spawn(connected[i]); end
+        for i = 1, #connected do
+            local player <const> = connected[i];
+            local character <const> = player:GetControlledCharacter();
+            if (character and character:IsValid()) then
+                logger:debug("player ^y%s^D already has a character, destroying it for respawn", player:GetAccountID());
+                character:Destroy();
+            end
+            spawn(player);
+        end
+        command_logger:success("respawned ^B%s^D player(s)", #connected);
     end);
+
     command({
         name = "respawn",
         description = "Respawn all players (dev)",
@@ -89,9 +101,9 @@ return function(ctx)
             local player <const> = ctx.player;
             if (not player) then return; end
             local pawn <const> = player:GetControlledCharacter();
-            if (not pawn) then Chat.SendMessage(player, "No controlled character"); return; end
+            if (not pawn or not pawn:IsValid()) then --[[ @todo Make notification system ]] return; end
             local loc <const>, rot <const> = pawn:GetLocation(), pawn:GetRotation();
-            logger:info("Player %s character's coordinates: Vector(%f, %f, %f), Rotator(%f, %f, %f)",
+            command_logger:info("Player ^y%s^D character's coordinates: ^BVector(^d%f^D, ^d%f^D, ^d%f^D^B)^D, ^BRotator(^d%f^D, ^d%f^D, ^d%f^B)^D",
                 player:GetAccountID(), loc.X, loc.Y, loc.Z, rot.Pitch, rot.Yaw, rot.Roll);
         end,
     });

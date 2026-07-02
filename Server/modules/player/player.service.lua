@@ -82,13 +82,20 @@ return function(ctx)
     ---@async
     ---@param player Player
     function service.release(player)
-        releasing:call(player); -- awaited: modules persist before we drop the cache
-        store.release(player);
+        local db_id <const> = player.db_id;
         local account_id <const> = player:GetAccountID();
         local character <const> = player:GetControlledCharacter();
-        if (character and character:IsValid()) then character:Destroy(); end
-        cache_ids[player.db_id] = nil;
+
+        releasing:call(player); -- awaited: modules persist before we drop the cache
+        store.release(player);
+
+        if (character and character:IsValid()) then
+            character:Destroy();
+        end
+
+        cache_ids[db_id] = nil;
         cache_account_ids[account_id] = nil;
+        logger:info("released player ^y%s^D (db_id=^y%s^D)", account_id, db_id);
     end
 
     --- Save every online player (autosave). Coroutine-only. Returns the count.

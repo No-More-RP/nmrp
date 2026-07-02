@@ -114,8 +114,10 @@ return function(ctx)
             if (not booted[mod.name] and mod.controller) then mod.controller(ctx); end
         end
         for i = 1, #list do
-            logger:debug("started %smodule '^B%s^D'", is_addon and "addon " or "", list[i].name);
-            booted[list[i].name] = true;
+            if (not booted[list[i].name]) then
+                logger:debug("started %smodule '^B%s^D'", is_addon and "addon " or "", list[i].name);
+                booted[list[i].name] = true;
+            end
         end
     end
 

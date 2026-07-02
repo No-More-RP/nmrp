@@ -86,8 +86,10 @@ return function(ctx)
             if (not booted[module.name] and module.controller) then module.controller(ctx); end
         end
         for i = 1, #names do
-            logger:debug("started %smodule '^B%s^D'", is_addon and "addon " or "", names[i]);
-            booted[names[i]] = true;
+            if (not booted[names[i]]) then
+                logger:debug("started %smodule '^B%s^D'", is_addon and "addon " or "", names[i]);
+                booted[names[i]] = true;
+            end
         end
     end
 

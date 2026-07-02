@@ -118,7 +118,11 @@ function Logger:__init(options)
     self.level  = opts.level or LogLevel.DEBUG;
     self.keep_level = opts.keep_level and true or false;
     self.keep_trace = opts.keep_trace and true or false;
-    self.trace = (opts.trace ~= nil and opts.trace) or (_ENV.DEV_MODE and true) or false;
+    if (opts.trace ~= nil) then
+        self.trace = opts.trace and true or false;
+    else
+        self.trace = _ENV.DEV_MODE and true or false;
+    end
     self.childs = {};
 end
 

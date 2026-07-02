@@ -72,7 +72,7 @@ end
 
 ---@class LoggerOptions
 ---@field public prefix? string  label shown between the level tag and the message
----@field public level? integer  minimum LogLevel to print (default LogLevel.DEBUG)
+---@field public level? LogLevel  minimum LogLevel to print (default LogLevel.DEBUG)
 ---@field public trace? boolean  append [source:line] of the call site (default: DEV_MODE)
 
 --- ANSI logger instance. Use the shared `logger` global, or construct one for a
@@ -88,6 +88,31 @@ end
 ---@field public trace boolean
 ---@overload fun(options: LoggerOptions?): Logger
 local Logger <const> = class.new("Logger");
+
+---@static
+Logger.ANSI = ansi; ---@type Ansi -- static: expose the palette for custom colorization
+
+---@alias LoggerColorCode '^b' | '^g' | '^y' | '^r' | '^m' | '^c' | '^w' | '^B' | '^G' | '^Y' | '^R' | '^M' | '^C' | '^W' | '^d' | '^D'
+
+---@type table<LoggerColorCode, string>
+local ansi_color_map <const> = {
+    ['^b'] = ansi.RESET .. ansi.BRIGHT_BLUE,
+    ['^g'] = ansi.RESET .. ansi.BRIGHT_GREEN,
+    ['^y'] = ansi.RESET .. ansi.BRIGHT_YELLOW,
+    ['^r'] = ansi.RESET .. ansi.BRIGHT_RED,
+    ['^m'] = ansi.RESET .. ansi.BRIGHT_MAGENTA,
+    ['^c'] = ansi.RESET .. ansi.BRIGHT_CYAN,
+    ['^w'] = ansi.RESET .. ansi.BRIGHT_WHITE,
+    ['^B'] = ansi.RESET .. ansi.BLUE,
+    ['^G'] = ansi.RESET .. ansi.GREEN,
+    ['^Y'] = ansi.RESET .. ansi.YELLOW,
+    ['^R'] = ansi.RESET .. ansi.RED,
+    ['^M'] = ansi.RESET .. ansi.MAGENTA,
+    ['^C'] = ansi.RESET .. ansi.CYAN,
+    ['^W'] = ansi.RESET .. ansi.WHITE,
+    ['^d'] = ansi.RESET .. ansi.DIM,
+    ['^D'] = ansi.RESET
+};
 
 ---@private
 ---@param options LoggerOptions?
@@ -135,6 +160,11 @@ function Logger:log(level, ...)
     segments[#segments + 1] = build(...);
 
     local line = table_concat(segments, ' ');
+
+    line = line:gsub('%^%a', function(code)
+        return ansi_color_map[code] or code;
+    end);
+
     -- The client's F8 console does not interpret ANSI, so drop the color codes
     -- there for clean text; the server terminal keeps them.
     if (not IS_SERVER) then line = ansi.strip(line); end
@@ -206,7 +236,7 @@ function Logger:fatal(...) return self:log(LogLevel.FATAL, ...); end
 --- logger:set_level("warn");         -- hide debug/info/success
 --- logger:set_level(LogLevel.ERROR); -- errors and fatals only
 --- ```
----@param level integer|string
+---@param level LogLevel|"info"|"success"|"warn"|"error"|"fatal"|"debug"
 ---@return Logger
 function Logger:set_level(level)
     if (type(level) == 'string') then
@@ -222,7 +252,7 @@ end
 --- ```lua
 --- if (logger:is_enabled(LogLevel.DEBUG)) then logger:debug(dump(state)); end
 --- ```
----@param level integer
+---@param level LogLevel
 ---@return boolean
 function Logger:is_enabled(level)
     return level >= self.level;

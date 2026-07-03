@@ -47,7 +47,7 @@ local db <const> = Norm.new({
 local settings <const> = {
     [SharedSettings.DEBUG] = custom_settings.debug or false,
     [SharedSettings.MODE] = custom_settings.mode or 'production'
-}; ---@type table<SharedSettings, any> key -> setting
+}; ---@type table<string, any> key -> setting
 
 for key, value in pairs(settings) do
     Server.SetValue(key, value, true);

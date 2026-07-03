@@ -83,7 +83,7 @@ function Interface:__init(webui)
         if (p and p.route == route) then
             self._pending = nil;
             if (p.opts.focus) then self:set_focus(p.opts.mouse); else self:release_focus(); end
-            p.promise:resolve(true);
+            p.promise:Resolve(true);
         elseif (route == "/") then
             self:release_focus(); -- back to the game
         end
@@ -105,6 +105,10 @@ end
 ---@param action string
 ---@param data any?
 function Interface:send(action, data)
+    if (not self.ui:IsValid()) then
+        self.logger:warn("WebUI is not valid, cannot send action '%s'", action);
+        return;
+    end
     if (not self.ready) then
         self._queue[#self._queue + 1] = { action = action, data = data };
         return;
@@ -120,6 +124,10 @@ end
 ---@param action string
 ---@param listener function
 function Interface:subscribe(action, listener)
+    if (not self.ui:IsValid()) then
+        self.logger:warn("WebUI is not valid, cannot subscribe to action '%s'", action);
+        return;
+    end
     self.ui:Subscribe(action, listener);
 end
 
@@ -132,6 +140,10 @@ end
 --- ```
 ---@param mouse boolean?
 function Interface:set_focus(mouse)
+    if (not self.ui:IsValid()) then
+        self.logger:warn("WebUI is not valid, cannot set focus");
+        return;
+    end
     self.has_focus = true;
     self._mouse = mouse or false;
     self.ui:SetFocus();
@@ -144,6 +156,10 @@ end
 --- ui:release_focus();
 --- ```
 function Interface:release_focus()
+    if (not self.ui:IsValid()) then
+        self.logger:warn("WebUI is not valid, cannot release focus");
+        return;
+    end
     self.has_focus = false;
     self._mouse = false;
     self.ui:RemoveFocus();
@@ -187,7 +203,7 @@ function Interface:set_route(route, opts)
     Timer.SetTimeout(function()
         if (self._pending and self._pending.route == route) then
             self._pending = nil;
-            promise:resolve(false);
+            promise:Resolve(false);
         end
     end, 5000);
 

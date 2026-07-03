@@ -21,7 +21,6 @@ local Logger <const> = require 'lib/classes/logger.lua'; ---@type Logger
 -- add a line to boot(...) below.
 local player_module <const>    = require 'modules/player/player.module.lua';       ---@type ClientAppModule
 local command_module <const>   = require 'modules/command/command.module.lua';     ---@type ClientAppModule
-local stamina_module <const>   = require 'modules/stamina/stamina.module.lua';     ---@type ClientAppModule
 local hud_module <const>       = require 'modules/hud/hud.module.lua';             ---@type ClientAppModule
 local chat_module <const>      = require 'modules/chat/chat.module.lua';           ---@type ClientAppModule
 local inventory_module <const> = require 'modules/inventory/inventory.module.lua'; ---@type ClientAppModule
@@ -94,7 +93,7 @@ end
 local loader <const> = make_loader(ctx);
 local boot_promise <const> = Promise(function(resolve, reject)
     local player <const> = Client.GetLocalPlayer();
-    if (not player) then
+    if (not player or not player:IsValid()) then
         return;
     end
     ctx.player = player;
@@ -102,11 +101,22 @@ local boot_promise <const> = Promise(function(resolve, reject)
     resolve(ctx);
 end);
 
-Client.Subscribe("SpawnLocalPlayer", function(player)
+---@param player Player?
+local function on_player_spawned(player)
+    if (boot_promise:IsSettled()) then
+        return;
+    end
+    player = player or Client.GetLocalPlayer();
+    if (not player) then
+        ctx.logger:error("no local player found");
+        return;
+    end
     ctx.player = player;
     load_settings();
-    boot_promise:resolve(ctx);
-end);
+    boot_promise:Resolve(ctx);
+end
+
+Client.Subscribe("SpawnLocalPlayer", on_player_spawned);
 
 -- Expose the client app to addon packages through the exported NMRP global (mirror of the
 -- server side). The client boots synchronously, so `ready` is already resolved here.
@@ -115,11 +125,11 @@ NMRP.ctx = ctx;
 --- Resolves to `ctx`. The client has no awaited boot, so this is ready immediately; it
 --- exists for API symmetry with the server, where addons must await the schema sync.
 NMRP.ready = async(function()
+    on_player_spawned();
     boot_promise:await();
     return loader.boot(
         player_module,
         command_module,
-        stamina_module,
         hud_module,
         chat_module,
         inventory_module

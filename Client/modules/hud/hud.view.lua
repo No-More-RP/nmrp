@@ -1,11 +1,15 @@
---- hud.view.lua: (V) HUD vitals transport to the WebUI. Buffers through the Interface (so
---- messages queue until the page is ready). INTERNAL to the hud module (other modules go
---- through the narrow hud service). Closure-factory style, like a server model: no class,
---- no singleton, one instance stored in ctx.views.hud.
+--- hud.view.lua: (V) HUD transport to the WebUI. Two parts: the fixed vitals (only health for
+--- now) pushed as a partial "hud:update", and a runtime GAUGE REGISTRY, bars added/removed on
+--- the fly ("hud:gauges" carries the ordered list, "hud:gauge" a single value). Health is
+--- permanent (bound to the Character); everything else is a registered gauge.
+--- INTERNAL to the hud module (other modules go through the narrow hud service).
+--- Closure-factory style: no class, no singleton, one instance stored in ctx.views.hud.
 ---
 --- ```lua
 --- local hud <const> = ctx.views.hud; ---@type HudView
 --- hud.set_health(80, 100);
+--- hud.register_gauge({ id = "stamina", label = "Stamina", icon = "⚡", color = "#4ea1ff", order = 30 });
+--- hud.set_gauge_segment("stamina", 80, -25, 0);
 --- ```
 ---@param ctx ClientAppContext
 ---@return HudView
@@ -15,25 +19,44 @@ return function(ctx)
     ---@class HudView
     local view <const> = {};
 
-    -- Full HUD state (mirror of HudData on the TS side).
+    -- Fixed vitals (mirror of HudData on the TS side): only health for now (permanent, bound
+    -- to the Character). Every bar lives in the gauge registry below, not here. Money and ammo
+    -- will come back as their own widgets with the economy / weapon modules.
     local state <const> = {
         health = 100, maxHealth = 100,
-        armor = 0, maxArmor = 100,
-        hunger = 100, thirst = 100,
-        -- Stamina is a motion segment (see set_stamina): value now, signed rate (units/s),
-        -- and delay (s) before the rate applies. The WebUI interpolates the bar from it.
-        stamina = { value = 100, rate = 0, delay = 0 },
-        money = 0,
-        ammoInClip = nil, ammoReserve = nil, weaponName = nil,
     };
+
+    ---@alias GaugeValue number | { value: number, rate: number, delay: number }
+    ---@class Gauge
+    ---@field id string
+    ---@field label string
+    ---@field icon string
+    ---@field color string        CSS color of the fill
+    ---@field order integer       sort key (ascending) in the vitals column
+    ---@field max number          full value (defaults to 100)
+    ---@field value GaugeValue    a number (static) or a motion segment (interpolated)
+    ---@field height? "thin"|"normal"
+
+    -- Runtime gauge registry: id -> Gauge. Rendered as bars ordered by `order`.
+    local gauges <const> = {}; ---@type table<string, Gauge>
+
     -- Currently bound Character (for reactive health) + its subscription.
     local character; ---@type Character|nil
     local on_health; ---@type any
 
-    --- Partial push: updates local state and sends ONLY what changed.
+    -- Ordered gauge list for the wire (the JS side sorts too, this just keeps it tidy).
+    ---@return Gauge[]
+    local function gauge_list()
+        local list <const> = {}; ---@type Gauge[]
+        for _, g in pairs(gauges) do list[#list + 1] = g; end
+        table.sort(list, function(a, b) return a.order < b.order; end);
+        return list;
+    end
+
+    --- Partial push of the fixed vitals: updates local state and sends ONLY what changed.
     ---
     --- ```lua
-    --- hud.push({ money = 1540, armor = 45 });
+    --- hud.push({ money = 1540 });
     --- ```
     ---@param partial table
     function view.push(partial)
@@ -41,12 +64,15 @@ return function(ctx)
         ui:send("hud:update", partial);
     end
 
-    --- Send the whole state (used on the "ui:ready" handshake).
+    --- Resend the whole state (fixed vitals + every gauge). Used on the "ui:ready" handshake.
     ---
     --- ```lua
     --- hud.sync();
     --- ```
-    function view.sync() ui:send("hud:update", state); end
+    function view.sync()
+        ui:send("hud:update", state);
+        ui:send("hud:gauges", gauge_list());
+    end
 
     --- Set health (and optionally max health).
     ---
@@ -57,43 +83,64 @@ return function(ctx)
     ---@param max number?
     function view.set_health(value, max) view.push({ health = value, maxHealth = max or state.maxHealth }); end
 
-    --- Set the stamina motion segment: the value now, the signed rate (units/s, negative
-    --- draining, positive regenerating, 0 steady), and the delay (s) before the rate applies.
+    --- Register a gauge (a bar added at runtime). Idempotent by id: registering an existing id
+    --- replaces it. `max` defaults to 100 and `value` to `max`. Sends the whole ordered list.
     ---
     --- ```lua
-    --- hud.set_stamina(80, -25, 0);
+    --- hud.register_gauge({ id = "hunger", label = "Hunger", icon = "🍖", color = "#e0a44b", order = 10 });
     --- ```
+    ---@param gauge Gauge
+    function view.register_gauge(gauge)
+        gauge.max = gauge.max or 100;
+        if (gauge.value == nil) then gauge.value = gauge.max; end
+        gauges[gauge.id] = gauge;
+        ui:send("hud:gauges", gauge_list());
+    end
+
+    --- Remove a gauge by id. No-op if it was not registered.
+    ---
+    --- ```lua
+    --- hud.unregister_gauge("hunger");
+    --- ```
+    ---@param id string
+    function view.unregister_gauge(id)
+        if (gauges[id] == nil) then return; end
+        gauges[id] = nil;
+        ui:send("hud:gauges", gauge_list());
+    end
+
+    --- Set a gauge's static value.
+    ---
+    --- ```lua
+    --- hud.set_gauge("hunger", 72);
+    --- ```
+    ---@param id string
+    ---@param value number
+    function view.set_gauge(id, value)
+        local g <const> = gauges[id];
+        if (not g) then return; end
+        g.value = value;
+        ui:send("hud:gauge", { id = id, value = value });
+    end
+
+    --- Set a gauge's value as a motion SEGMENT: value now, signed rate (units/s, negative
+    --- draining, positive filling, 0 steady), and delay (s) before the rate applies. The UI
+    --- interpolates the bar from it, so ~2 packets replace a per-tick stream (see stamina).
+    ---
+    --- ```lua
+    --- hud.set_gauge_segment("stamina", 80, -25, 0);
+    --- ```
+    ---@param id string
     ---@param value number
     ---@param rate number
     ---@param delay number
-    function view.set_stamina(value, rate, delay) view.push({ stamina = { value = value, rate = rate, delay = delay } }); end
-
-    --- Set armor (and optionally max armor).
-    ---
-    --- ```lua
-    --- hud.set_armor(45, 100);
-    --- ```
-    ---@param value number
-    ---@param max number?
-    function view.set_armor(value, max) view.push({ armor = value, maxArmor = max or state.maxArmor }); end
-
-    --- Set the money amount.
-    ---
-    --- ```lua
-    --- hud.set_money(1540);
-    --- ```
-    ---@param value number
-    function view.set_money(value) view.push({ money = value }); end
-
-    --- Set ammo + weapon name.
-    ---
-    --- ```lua
-    --- hud.set_ammo(17, 102, "Glock 17");
-    --- ```
-    ---@param clip number?
-    ---@param reserve number?
-    ---@param weapon string?
-    function view.set_ammo(clip, reserve, weapon) view.push({ ammoInClip = clip, ammoReserve = reserve, weaponName = weapon }); end
+    function view.set_gauge_segment(id, value, rate, delay)
+        local g <const> = gauges[id];
+        if (not g) then return; end
+        local seg <const> = { value = value, rate = rate, delay = delay };
+        g.value = seg;
+        ui:send("hud:gauge", { id = id, value = seg });
+    end
 
     --- Bind a Character: push its initial health and subscribe to HealthChange (reactive,
     --- no polling). Automatically detaches the previous one.

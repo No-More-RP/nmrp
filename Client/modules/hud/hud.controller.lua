@@ -1,6 +1,7 @@
 --- hud.controller.lua: (C) the client HUD module. Owns its view's internal wiring: binds
---- health reactively to the possessed Character (bus lifecycle) and pushes the initial
---- vitals. Other modules push their data through the narrow ctx.services.hud facade.
+--- health reactively to the possessed Character (bus lifecycle). Health is permanent; every
+--- other bar is a runtime gauge that its own feature registers through ctx.services.hud
+--- (e.g. the stamina addon). Other modules push their data through the narrow facade.
 ---
 --- ```lua
 --- require 'modules/hud/hud.controller.lua' (ctx);
@@ -14,11 +15,7 @@ return function(ctx)
     ctx.events:on("character:possess", function(character) view.attach_character(character); end);
     ctx.events:on("character:unpossess", function() view.detach_character(); end);
 
-    -- Demo vitals until real gameplay drives them. REPLACE.
-    view.push({
-        armor = 45, maxArmor = 100,
-        hunger = 72, thirst = 58,
-        money = 1540,
-        ammoInClip = 17, ammoReserve = 102, weaponName = "Glock 17",
-    });
+    -- Nothing else registered here on purpose: every bar (stamina, hunger, thirst, ...) is
+    -- owned by its feature (an addon) and registered through ctx.services.hud. Money and ammo
+    -- widgets will come back with the economy / weapon modules.
 end

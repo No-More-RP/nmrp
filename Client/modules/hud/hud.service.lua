@@ -1,12 +1,14 @@
 --- hud.service.lua: (S) the HUD module's public API (ctx.services.hud), a narrow facade over
---- its view (ctx.views.hud). Only the setters meant for cross-module use are exposed, never
---- the raw transport (push / sync / attach_character): the view stays internal.
+--- its view (ctx.views.hud). Exposes the health setter and the runtime gauge registry
+--- (register / unregister / set / set_segment), never the raw transport (push / sync /
+--- attach_character): the view stays internal.
 
 --- Build the HUD service.
 ---
 --- ```lua
 --- local hud <const> = ctx.services.hud;
---- hud.set_stamina(80, -25, 0);
+--- hud.register_gauge({ id = "stamina", label = "Stamina", icon = "⚡", color = "#4ea1ff", order = 30 });
+--- hud.set_gauge_segment("stamina", 80, -25, 0);
 --- ```
 ---@param ctx ClientAppContext
 ---@return HudService
@@ -25,42 +27,41 @@ return function(ctx)
     ---@param max number?
     function service.set_health(value, max) view.set_health(value, max); end
 
-    --- Set armor (and optionally max armor).
+    --- Register a HUD gauge (a bar added at runtime). Idempotent by id.
     ---
     --- ```lua
-    --- ctx.services.hud.set_armor(45, 100);
+    --- ctx.services.hud.register_gauge({ id = "hunger", label = "Hunger", icon = "🍖", color = "#e0a44b", order = 10 });
     --- ```
-    ---@param value number
-    ---@param max number?
-    function service.set_armor(value, max) view.set_armor(value, max); end
+    ---@param gauge Gauge
+    function service.register_gauge(gauge) view.register_gauge(gauge); end
 
-    --- Set the stamina motion segment (value now, signed rate, delay before it applies).
+    --- Remove a HUD gauge by id.
     ---
     --- ```lua
-    --- ctx.services.hud.set_stamina(80, -25, 0);
+    --- ctx.services.hud.unregister_gauge("hunger");
     --- ```
+    ---@param id string
+    function service.unregister_gauge(id) view.unregister_gauge(id); end
+
+    --- Set a gauge's static value.
+    ---
+    --- ```lua
+    --- ctx.services.hud.set_gauge("hunger", 72);
+    --- ```
+    ---@param id string
+    ---@param value number
+    function service.set_gauge(id, value) view.set_gauge(id, value); end
+
+    --- Set a gauge's value as an interpolated motion segment (value, signed rate, delay).
+    ---
+    --- ```lua
+    --- ctx.services.hud.set_gauge_segment("stamina", 80, -25, 0);
+    --- ```
+    ---@param id string
     ---@param value number
     ---@param rate number
     ---@param delay number
-    function service.set_stamina(value, rate, delay) view.set_stamina(value, rate, delay); end
-
-    --- Set the money amount.
-    ---
-    --- ```lua
-    --- ctx.services.hud.set_money(1540);
-    --- ```
-    ---@param value number
-    function service.set_money(value) view.set_money(value); end
-
-    --- Set ammo + weapon name.
-    ---
-    --- ```lua
-    --- ctx.services.hud.set_ammo(17, 102, "Glock 17");
-    --- ```
-    ---@param clip number?
-    ---@param reserve number?
-    ---@param weapon string?
-    function service.set_ammo(clip, reserve, weapon) view.set_ammo(clip, reserve, weapon); end
+    function service.set_gauge_segment(id, value, rate, delay) view.set_gauge_segment(id, value, rate, delay); end
 
     return service;
 end

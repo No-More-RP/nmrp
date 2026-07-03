@@ -19,8 +19,6 @@
     compatibility_version = "1.143"
     # packages requirements
     packages_requirements = [
-                            "default-weapons",
-                            "default-vehicles",
                             "nmrp-promise",
                             "nmrp-norm",
                             "nmrp-rpc",

@@ -23,8 +23,6 @@ This is a **game-mode** package. It declares its dependencies in `Package.toml`:
 ```toml
 [game_mode]
     packages_requirements = [
-        "default-weapons",
-        "default-vehicles",
         "nmrp-promise",
         "nmrp-norm",
         "nmrp-rpc",

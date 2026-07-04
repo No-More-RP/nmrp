@@ -8,8 +8,8 @@
 --- "file:///web/index.html" -> Client/web/index.html.
 ---
 --- Event contract (must stay in sync with the nmrp-ui events.ts):
----   Lua -> JS : hud:update, inventory:set/toggle, chat:message/clear/commands/focus
----   JS -> Lua : ui:ready, inventory:use/drop/move/close, chat:submit/close
+---   Lua -> JS : hud:update, hud:gauges, hud:gauge, chat:message/clear/commands/focus
+---   JS -> Lua : ui:ready, chat:submit/close
 
 local Interface <const> = require 'ui/interface.lua'; ---@type Interface
 local bus <const> = require 'core/bus.lua';           ---@type EventEmitter
@@ -23,7 +23,6 @@ local player_module <const>    = require 'modules/player/player.module.lua';    
 local command_module <const>   = require 'modules/command/command.module.lua';     ---@type ClientAppModule
 local hud_module <const>       = require 'modules/hud/hud.module.lua';             ---@type ClientAppModule
 local chat_module <const>      = require 'modules/chat/chat.module.lua';           ---@type ClientAppModule
-local inventory_module <const> = require 'modules/inventory/inventory.module.lua'; ---@type ClientAppModule
 
 --- Set to `true` to load the Vite dev server directly IN GAME (component hot-reload
 --- without a rebuild). Run `pnpm dev` in the nmrp-ui repo first.
@@ -31,7 +30,7 @@ local DEV <const> = false;
 local DEV_URL <const> = "http://localhost:5173";
 local PROD_PATH <const> = "file:///web/index.html";
 
---- WebUI hosting the main interfaces (HUD + inventory + chat share this browser).
+--- WebUI hosting the main interfaces (HUD + chat share this browser).
 local MainUI <const> = WebUI(
     "MainInterface",                -- debug name: the player's main interfaces
     DEV and DEV_URL or PROD_PATH,
@@ -131,8 +130,7 @@ NMRP.ready = async(function()
         player_module,
         command_module,
         hud_module,
-        chat_module,
-        inventory_module
+        chat_module
     );
 end);
 

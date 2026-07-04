@@ -12,7 +12,7 @@
 --- local Interface <const> = require 'ui/interface.lua'; ---@type Interface
 --- local ui <const> = Interface.get(main_webui);
 --- ui:send("hud:update", { health = 100 }); -- queued until the page is ready
---- ui:set_route("/inventory", { focus = true, mouse = true });
+--- ui:set_route("/menu", { focus = true, mouse = true });
 --- ```
 local EventEmitter <const> = require 'lib/classes/event-emitter.lua'; ---@type EventEmitter
 local hooks <const> = require 'lib/classes/hook.lua'; ---@type HookModule
@@ -119,7 +119,7 @@ end
 --- Listen for an action coming from the page (JS -> Lua).
 ---
 --- ```lua
---- ui:subscribe("inventory:use", function(slot) use(slot); end);
+--- ui:subscribe("menu:action", function(id) handle(id); end);
 --- ```
 ---@param action string
 ---@param listener function
@@ -136,7 +136,7 @@ end
 ---
 --- ```lua
 --- ui:set_focus();     -- keyboard only (chat)
---- ui:set_focus(true); -- + mouse (inventory)
+--- ui:set_focus(true); -- + mouse (an interactive panel)
 --- ```
 ---@param mouse boolean?
 function Interface:set_focus(mouse)
@@ -183,7 +183,7 @@ end
 --- it was vetoed or timed out.
 ---
 --- ```lua
---- ui:set_route("/inventory", { focus = true, mouse = true });
+--- ui:set_route("/menu", { focus = true, mouse = true });
 --- ```
 ---@param route string
 ---@param opts RouteOptions?

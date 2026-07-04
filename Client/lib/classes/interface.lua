@@ -1,17 +1,20 @@
---- Interface: the single WebUI manager. It owns the main WebUI, buffers outgoing
---- messages until the page signals it is ready (so pushing is always safe, even at
---- startup), centralizes focus, and exposes the Lua <-> JS transport. Pages and components
---- push through it instead of touching the WebUI directly.
+--- interface.lua: a reusable WebUI manager. Wraps a WebUI to give it buffered messaging
+--- (Lua -> JS is queued until the page signals it is ready, so pushing is always safe, even
+--- before the page mounts), a focus helper, and the Lua <-> JS transport. Extends
+--- EventEmitter for the Lua-side lifecycle ("ready", "focus", "blur").
 ---
---- Extends EventEmitter for Lua-side lifecycle events ("ready", "focus", "blur").
+--- NOT a singleton: build one per WebUI. The core wraps its MainInterface; a package with
+--- its own frontend wraps its own WebUI the same way through NMRP.Interface, instead of
+--- reimplementing the queue / focus / transport.
 ---
 --- ```lua
---- local Interface <const> = require 'ui/interface.lua'; ---@type Interface
---- local ui <const> = Interface.get(main_webui);
---- ui:send("hud:update", { health = 100 }); -- queued until the page is ready
+--- local ui <const> = Interface(my_webui, { name = "Shop", ready_event = "ui:ready" });
+--- ui:send("shop:update", data); -- queued until the page is ready
 --- ```
 local EventEmitter <const> = require 'lib/classes/event-emitter.lua'; ---@type EventEmitter
 local Logger <const> = require 'lib/classes/logger.lua'; ---@type Logger
+
+---@alias InterfaceOptions { name?: string, ready_event?: string, focus_events?: boolean }
 
 ---@class Interface : EventEmitter
 ---@field logger Logger
@@ -20,37 +23,28 @@ local Logger <const> = require 'lib/classes/logger.lua'; ---@type Logger
 ---@field has_focus boolean
 ---@field private _queue { action: string, data: any }[]
 ---@field private _mouse boolean
----@overload fun(webui: WebUI): Interface
+---@field private _ready_event string
+---@field private _on_focus fun(is_focused: boolean)?
+---@overload fun(webui: WebUI, opts?: InterfaceOptions): Interface
 local Interface <const> = class.extend("Interface", EventEmitter);
-
-local instance; ---@type Interface
-
---- Get the singleton (created on first call with the WebUI).
----
---- ```lua
---- local ui <const> = Interface.get(main_webui);
---- ```
----@param webui WebUI?
----@return Interface
-function Interface.get(webui)
-    instance = instance or Interface(webui);
-    return instance;
-end
 
 ---@private
 ---@param webui WebUI
+---@param opts InterfaceOptions?
 ---@return void
-function Interface:__init(webui)
+function Interface:__init(webui, opts)
     EventEmitter.__init(self);
-    self.logger = Logger("Interface");
+    opts = type(opts) == "table" and opts or {};
+    self.logger = Logger(opts.name or "Interface");
     self.ui = webui;
     self.ready = false;
     self.has_focus = false;
     self._queue = {}; ---@type { action: string, data: any }[]
     self._mouse = false;
+    self._ready_event = opts.ready_event or "Ready";
 
     -- The page is mounted: flush everything buffered, then announce ready (Lua side).
-    webui:Subscribe("ui:ready", function()
+    webui:Subscribe(self._ready_event, function()
         if (self.ready) then return; end
         self.ready = true;
         for i = 1, #self._queue do
@@ -61,10 +55,11 @@ function Interface:__init(webui)
         self:emit("ready");
     end);
 
-    -- Emit the window focus lifecycle for the Lua side.
-    Client.Subscribe("WindowFocusChange", function(is_focused)
-        self:emit(is_focused and "focus" or "blur");
-    end);
+    -- Window focus lifecycle for the Lua side (opt out with focus_events = false).
+    if (opts.focus_events ~= false) then
+        self._on_focus = function(is_focused) self:emit(is_focused and "focus" or "blur"); end;
+        Client.Subscribe("WindowFocusChange", self._on_focus);
+    end
 end
 
 --- Push an action to the page (Lua -> JS). Buffered until the page is ready, so it is
@@ -135,6 +130,20 @@ function Interface:release_focus()
     self._mouse = false;
     self.ui:RemoveFocus();
     Input.SetMouseEnabled(false);
+end
+
+--- Tear down: drop the window-focus subscription and the queue. Call it when the wrapped
+--- WebUI is destroyed (e.g. a package unloading its own frontend).
+---
+--- ```lua
+--- ui:destroy();
+--- ```
+function Interface:destroy()
+    if (self._on_focus) then
+        Client.Unsubscribe("WindowFocusChange", self._on_focus);
+        self._on_focus = nil;
+    end
+    self._queue = {};
 end
 
 return Interface;

@@ -14,7 +14,7 @@
 ---@param ctx ClientAppContext
 ---@return HudView
 return function(ctx)
-    local ui <const> = ctx.ui;
+    local ui <const> = ctx.interface;
 
     ---@class HudView
     local view <const> = {};

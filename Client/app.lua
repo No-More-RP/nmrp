@@ -11,7 +11,7 @@
 ---   Lua -> JS : hud:update, hud:gauges, hud:gauge, chat:message/clear/commands/focus
 ---   JS -> Lua : ui:ready, chat:submit/close
 
-local Interface <const> = require 'ui/interface.lua'; ---@type Interface
+local Interface <const> = require 'lib/classes/interface.lua'; ---@type Interface
 local bus <const> = require 'core/bus.lua';           ---@type EventEmitter
 local make_loader <const> = require 'core/loader.lua'; ---@type fun(ctx: ClientAppContext): ClientLoader
 local SharedSettings <const> = require 'lib/constants/shared.settings.lua'; ---@type SharedSettings
@@ -45,7 +45,7 @@ Locale.Attach(MainUI);
 --- The client application context: the single object handed to every module (service +
 --- controller). Modules reach each other through ctx.services.<name>.
 ---@class ClientAppContext
----@field ui Interface                  the WebUI manager (buffered send, focus, router)
+---@field interface Interface            the WebUI manager (buffered send, focus, transport)
 ---@field events EventEmitter           the client domain bus (player:ready, character:possess, ...)
 ---@field player Player                 the local player
 ---@field locale any                    the nmrp locale namespace
@@ -55,7 +55,7 @@ Locale.Attach(MainUI);
 ---@field settings table<string, any> the shared settings (debug, mode, etc)
 ---@type ClientAppContext
 local ctx <const> = {
-    ui = Interface.get(MainUI),
+    interface = Interface(MainUI, { name = "MainInterface", ready_event = "ui:ready" }),
     events = bus,
     player   = nil,
     locale   = Locale.Namespace("nmrp"),
@@ -120,6 +120,14 @@ Client.Subscribe("SpawnLocalPlayer", on_player_spawned);
 -- Expose the client app to addon packages through the exported NMRP global (mirror of the
 -- server side). The client boots synchronously, so `ready` is already resolved here.
 NMRP.ctx = ctx;
+
+--- The Interface class: a package with its own frontend wraps its own WebUI with it to get
+--- the buffered send / focus / transport, instead of reimplementing them.
+---
+--- ```lua
+--- local ui <const> = NMRP.Interface(my_webui, { name = "Shop" });
+--- ```
+NMRP.Interface = Interface;
 
 --- Resolves to `ctx`. The client has no awaited boot, so this is ready immediately; it
 --- exists for API symmetry with the server, where addons must await the schema sync.

@@ -9,7 +9,7 @@
 ---@param ctx ClientAppContext
 ---@return ChatView
 return function(ctx)
-    local ui <const> = ctx.ui;
+    local ui <const> = ctx.interface;
 
     -- Disable the native chat (we render our own).
     Chat.SetVisibility(false);

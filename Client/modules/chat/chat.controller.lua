@@ -10,7 +10,7 @@
 ---@return void
 return function(ctx)
     local chat <const> = ctx.views.chat; ---@type ChatView
-    local ui <const> = ctx.ui;
+    local ui <const> = ctx.interface;
 
     -- JS -> Lua: a submitted line runs as a command, or is echoed as chat.
     ui:subscribe("chat:submit", function(text)

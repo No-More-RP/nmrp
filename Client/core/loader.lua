@@ -13,7 +13,6 @@
 ---     require 'modules/stamina/stamina.module.lua'
 --- );
 --- ```
----@alias ClientAppModule { name: string, depends?: string[], view?: fun(ctx: ClientAppContext): any, service?: fun(ctx: ClientAppContext): any, controller?: fun(ctx: ClientAppContext): void }
 ---
 ---@class ClientAppModule
 ---@field name string

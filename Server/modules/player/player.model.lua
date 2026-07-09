@@ -17,8 +17,8 @@ return function(db)
     local characters <const> = db:define("characters", {
         id          = Norm.types.id(),
         player_id   = Norm.types.integer({ nullable = false }),
-        location    = Norm.types.json({ default = JSON.stringify({ X = 0, Y = 0, Z = 0 }) }),
-        rotation    = Norm.types.json({ default = JSON.stringify({ Pitch = 0, Yaw = 0, Roll = 0 }) }),
+        location    = Norm.types.json({ nullable = false }),
+        rotation    = Norm.types.json({ nullable = false }),
         model       = Norm.types.string({ length = 64, nullable = false }),
         player      = Norm.types.belongsTo("players", { key = "player_id", onDelete = "CASCADE" }),
     });

@@ -9,14 +9,21 @@
 ---@param ctx ClientAppContext
 ---@return void
 return function(ctx)
+    local service <const> = ctx.services.chat; ---@type CChatService
     local chat <const> = ctx.views.chat; ---@type ChatView
     local ui <const> = ctx.interface;
+
+    Events.SubscribeRemote("chat:entry", function(kind, author, text)
+        chat.message(kind, author or "Unknown", text);
+    end);
 
     -- JS -> Lua: a submitted line runs as a command, or is echoed as chat.
     ui:subscribe("chat:submit", function(text)
         chat.focus(false);
         if (command.run(text)) then return; end
-        chat.message("chat", "You", text);
+        if (ctx.settings.forward_chat) then
+            service.send("chat", text);
+        end
     end);
     ui:subscribe("chat:close", function() chat.focus(false); end);
 

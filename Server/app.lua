@@ -46,7 +46,8 @@ local db <const> = Norm.new({
 
 local settings <const> = {
     [SharedSettings.DEBUG] = custom_settings.debug or false,
-    [SharedSettings.MODE] = custom_settings.mode or 'production'
+    [SharedSettings.MODE] = custom_settings.mode or 'production',
+    [SharedSettings.FORWARD_CHAT] = custom_settings.forward_chat or false
 }; ---@type table<string, any> key -> setting
 
 for key, value in pairs(settings) do
@@ -98,6 +99,7 @@ local loader <const> = make_loader(ctx);
 -- Register features here. Adding a job/faction later = one line + its module folder.
 local player_module <const>  = require 'modules/player/player.module.lua';   ---@type AppModule
 local economy_module <const> = require 'modules/economy/economy.module.lua'; ---@type AppModule
+local chat_module <const>    = require 'modules/chat/chat.module.lua';       ---@type AppModule
 
 -- Expose the app to addon packages through the exported NMRP global (Package.Export in
 -- Shared/Index.lua). An addon that depends on nmrp sees these injected as globals.
@@ -105,7 +107,7 @@ NMRP.ctx = ctx;
 
 --- Resolves to `ctx` once every core module is booted (models -> services -> controllers)
 --- and the schema is synced. Starting the boot here is what starts the whole app.
-NMRP.ready = async(function() return loader.boot(player_module, economy_module); end);
+NMRP.ready = async(function() return loader.boot(player_module, economy_module, chat_module); end);
 
 --- Register one or more addon modules from another package. Waits for the core to be ready,
 --- then wires the new modules and syncs their tables. Returns a Promise resolving to `ctx`,

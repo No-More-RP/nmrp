@@ -39,4 +39,5 @@
 [custom_settings]
     database_connection = { label = "Database", type = "text", description = "Database connection string", default = "db=nmrp user=root host=127.0.0.1 port=3307" }
     debug = { label = "Debug", type = "boolean", description = "Debug mode", default = false }
+    forward_chat = { label = "Forward Chat", type = "boolean", description = "Forward chat messages to other players", default = false }
     mode = { label = "Mode", type = "select", description = "Environment mode", options = [ "development", "production" ], default = "production" }

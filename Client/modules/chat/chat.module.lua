@@ -2,7 +2,7 @@
 --- exposes a narrow service (ctx.services.chat) over it, and wires the input / autocomplete /
 --- toggle in its controller.
 local view <const>       = require 'chat.view.lua';       ---@type fun(ctx: ClientAppContext): ChatView
-local service <const>    = require 'chat.service.lua';    ---@type fun(ctx: ClientAppContext): ChatService
+local service <const>    = require 'chat.service.lua';    ---@type fun(ctx: ClientAppContext): CChatService
 local controller <const> = require 'chat.controller.lua'; ---@type fun(ctx: ClientAppContext): void
 
 ---@type ClientAppModule

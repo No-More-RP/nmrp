@@ -9,11 +9,11 @@
 --- chat.announce("Restart in 5 minutes.");
 --- ```
 ---@param ctx ClientAppContext
----@return ChatService
+---@return CChatService
 return function(ctx)
     local view <const> = ctx.views.chat; ---@type ChatView
 
-    ---@class ChatService
+    ---@class CChatService
     local service <const> = {};
 
     --- Append a message to the chat log.
@@ -21,7 +21,7 @@ return function(ctx)
     --- ```lua
     --- ctx.services.chat.message("staff", "[STAFF] Admin", "Event in 5 minutes.");
     --- ```
-    ---@param kind "chat"|"announcement"|"staff"|"system"|"command"
+    ---@param kind ChatKind
     ---@param author string?
     ---@param text string
     function service.message(kind, author, text) view.message(kind, author, text); end
@@ -65,6 +65,17 @@ return function(ctx)
     --- ctx.services.chat.clear();
     --- ```
     function service.clear() view.clear(); end
+
+    --- Send a line to the server (JS -> Lua -> Server).
+    --- ```lua
+    --- ctx.services.chat.send("chat", "Hello everyone!");
+    --- ```
+    ---@param kind ChatKind
+    ---@param text string
+    function service.send(kind, text)
+        if (not ctx.settings.forward_chat) then return; end
+        Events.CallRemote("chat:send", Reliability.Reliable, kind, text);
+    end
 
     return service;
 end

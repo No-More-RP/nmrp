@@ -158,6 +158,23 @@ function NMRP.register(...)
     end, ...);
 end
 
+--- Unregister addon client modules previously added with NMRP.register (the inverse): runs
+--- each module's optional `destroy(ctx)` hook and drops it from the loader, freeing its name
+--- to be registered again. Call it from the addon's Package "Unload" so a hot-reload does not
+--- hit the loader's duplicate-name error and its views / HUD gauges do not linger.
+---
+--- ```lua
+--- -- in the addon's Client/Index.lua:
+--- local needs <const> = require 'modules/needs/needs.module.lua';
+--- NMRP.register(needs);
+--- Package.Subscribe("Unload", function() NMRP.unregister(needs); end);
+--- ```
+---@vararg ClientAppModule
+---@return ClientAppContext
+function NMRP.unregister(...)
+    return loader.unregister(...);
+end
+
 Package.Export("NMRP", NMRP);
 
 return MainUI;

@@ -20,6 +20,7 @@
 ---@field view? fun(ctx: ClientAppContext): any
 ---@field service? fun(ctx: ClientAppContext): any
 ---@field controller? fun(ctx: ClientAppContext): void
+---@field destroy? fun(ctx: ClientAppContext): void   -- teardown hook, run on unregister
 
 ---@param ctx ClientAppContext
 ---@return ClientLoader
@@ -126,6 +127,44 @@ return function(ctx)
         for i = 1, #list do register(list[i]); added[#added + 1] = list[i].name; end
         wire(sorted(), true);
         logger:info("registered addon module(s): ^G%s^D", table.concat(added, ", "));
+        return ctx;
+    end
+
+    --- Tear down addon modules added with `register` (the inverse). For each descriptor, in
+    --- reverse order (a dependent is dropped before what it depends on): run its optional
+    --- `destroy(ctx)` hook, drop its view/service from the ctx, and remove it from the
+    --- registry so the same name is free to register again on a package hot-reload. Without
+    --- this, reloading an addon hits the duplicate-name assert in register() and its HUD
+    --- gauges / views linger in the (still-loaded) core. Call it from the addon's Package
+    --- "Unload" (see NMRP.unregister). Unknown names are ignored.
+    ---
+    --- ```lua
+    --- loader.unregister(require 'modules/needs/needs.module.lua');
+    --- ```
+    ---@vararg ClientAppModule
+    ---@return ClientAppContext
+    function loader.unregister(...)
+        local list <const> = { ... }; ---@type ClientAppModule[]
+        for i = #list, 1, -1 do
+            local module <const> = list[i];
+            local name <const> = module and module.name; ---@type string?
+            if (name and modules[name]) then
+                -- Guarded: on a full gamemode reload the core may already be gone, so a
+                -- destroy reaching back into it (e.g. a HUD gauge) must not hard-error.
+                if (booted[name] and module.destroy) then
+                    local ok <const>, err <const> = pcall(module.destroy, ctx);
+                    if (not ok) then logger:warn("addon module '%s' destroy failed: %s", name, tostring(err)); end
+                end
+                ctx.services[name] = nil;
+                ctx.views[name] = nil;
+                modules[name] = nil;
+                booted[name] = nil;
+                for j = #order, 1, -1 do
+                    if (order[j] == name) then table.remove(order, j); break; end
+                end
+                logger:debug("unregistered addon module '^B%s^D'", name);
+            end
+        end
         return ctx;
     end
 

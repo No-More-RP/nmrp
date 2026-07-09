@@ -24,7 +24,7 @@ return function(ctx)
     --- ```lua
     --- chat.message("staff", "[STAFF] Admin", "Event in 5 minutes.");
     --- ```
-    ---@param kind "chat"|"announcement"|"staff"|"system"|"command"
+    ---@param kind ChatKind
     ---@param author string?
     ---@param text string
     function view.message(kind, author, text) ui:send("chat:message", { kind = kind, author = author, text = text }); end
@@ -98,6 +98,12 @@ return function(ctx)
         ui:send("chat:focus", is_open);
         if (is_open) then ui:set_focus(); else ui:release_focus(); end
     end
+
+    -- Restore the input's DOM focus after an alt-tab: the Interface re-grabs the WebUI
+    -- keyboard focus and pulses "refocus"; forward it so the page re-focuses its <input>.
+    ui:on("refocus", function()
+        if (open) then ui:send("chat:refocus"); end
+    end);
 
     return view;
 end

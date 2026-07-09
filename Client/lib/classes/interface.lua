@@ -1,7 +1,8 @@
 --- interface.lua: a reusable WebUI manager. Wraps a WebUI to give it buffered messaging
 --- (Lua -> JS is queued until the page signals it is ready, so pushing is always safe, even
 --- before the page mounts), a focus helper, and the Lua <-> JS transport. Extends
---- EventEmitter for the Lua-side lifecycle ("ready", "focus", "blur").
+--- EventEmitter for the Lua-side lifecycle ("ready", "focus", "blur", "refocus" — fired
+--- after the WebUI focus is re-grabbed on an alt-tab, so a page can restore its DOM focus).
 ---
 --- NOT a singleton: build one per WebUI. The core wraps its MainInterface; a package with
 --- its own frontend wraps its own WebUI the same way through NMRP.Interface, instead of
@@ -25,6 +26,7 @@ local Logger <const> = require 'lib/classes/logger.lua'; ---@type Logger
 ---@field private _mouse boolean
 ---@field private _ready_event string
 ---@field private _on_focus fun(is_focused: boolean)?
+---@field private _on_mouse fun()?
 ---@overload fun(webui: WebUI, opts?: InterfaceOptions): Interface
 local Interface <const> = class.extend("Interface", EventEmitter);
 
@@ -35,7 +37,10 @@ local Interface <const> = class.extend("Interface", EventEmitter);
 function Interface:__init(webui, opts)
     EventEmitter.__init(self);
     opts = type(opts) == "table" and opts or {};
-    self.logger = Logger(opts.name or "Interface");
+    self.logger = Logger({
+        prefix = opts.name or "Interface",
+        level = Logger.LogLevel.INFO
+    });
     self.ui = webui;
     self.ready = false;
     self.has_focus = false;
@@ -55,10 +60,34 @@ function Interface:__init(webui, opts)
         self:emit("ready");
     end);
 
-    -- Window focus lifecycle for the Lua side (opt out with focus_events = false).
+    -- Focus lifecycle (opt out with focus_events = false). The engine can hand keyboard back
+    -- to the game viewport when the window regains OS focus (alt-tab) and on mouse clicks; we
+    -- re-assert focus on those exact events. Re-enabling input on regain and re-focusing on
+    -- clicks (which fire even with the cursor disabled) restores focus, and a "refocus" event
+    -- lets the page re-focus its own DOM element.
     if (opts.focus_events ~= false) then
-        self._on_focus = function(is_focused) self:emit(is_focused and "focus" or "blur"); end;
+        local function reassert()
+            if (not self.has_focus or not self.ui:IsValid()) then return; end
+            self.ui:SetFocus();
+            self:emit("refocus");
+            return false; -- prevent the click from propagating to the game viewport
+        end
+
+        self._on_focus = function(is_focused)
+            if (is_focused and self.has_focus and self.ui:IsValid()) then
+                Input.SetInputEnabled(true);
+                Input.SetMouseEnabled(self._mouse);
+                reassert();
+            end
+            self:emit(is_focused and "focus" or "blur");
+        end;
+        self._on_mouse = function()
+            if (self.has_focus) then return reassert(); end
+        end;
+
         Client.Subscribe("WindowFocusChange", self._on_focus);
+        Input.Subscribe("MouseDown", self._on_mouse);
+        Input.Subscribe("MouseUp", self._on_mouse);
     end
 end
 
@@ -132,8 +161,8 @@ function Interface:release_focus()
     Input.SetMouseEnabled(false);
 end
 
---- Tear down: drop the window-focus subscription and the queue. Call it when the wrapped
---- WebUI is destroyed (e.g. a package unloading its own frontend).
+--- Tear down: drop the focus subscriptions and the queue. Call it when the wrapped WebUI is
+--- destroyed (e.g. a package unloading its own frontend).
 ---
 --- ```lua
 --- ui:destroy();
@@ -142,6 +171,11 @@ function Interface:destroy()
     if (self._on_focus) then
         Client.Unsubscribe("WindowFocusChange", self._on_focus);
         self._on_focus = nil;
+    end
+    if (self._on_mouse) then
+        Input.Unsubscribe("MouseDown", self._on_mouse);
+        Input.Unsubscribe("MouseUp", self._on_mouse);
+        self._on_mouse = nil;
     end
     self._queue = {};
 end

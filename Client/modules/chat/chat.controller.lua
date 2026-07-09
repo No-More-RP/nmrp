@@ -27,6 +27,14 @@ return function(ctx)
     end);
     ui:subscribe("chat:close", function() chat.focus(false); end);
 
+    -- /clear: wipe the local chat log. Client-only (the native chat is disabled), so it drives
+    -- our WebUI log through the chat service rather than the native Chat.Clear().
+    command({
+        name = "clear",
+        description = ctx.locale:t("chat.clear_description"),
+        callback = function() service.clear(); end,
+    });
+
     -- Refresh the autocomplete when the server pushes the command registry.
     ctx.events:on("command:changed", function() chat.set_commands(command.specs()); end);
     chat.set_commands(command.specs());

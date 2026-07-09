@@ -19,5 +19,6 @@ L:Register('fr', {
         placeholder = "Entrée pour envoyer · / pour une commande · Échap pour fermer",
         welcome = "Bienvenue, appuie sur T pour discuter, / pour une commande.",
         bind_description = "Ouvrir/Fermer le chat",
+        clear_description = "Vider le chat",
     },
 });

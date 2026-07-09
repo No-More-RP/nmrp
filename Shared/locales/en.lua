@@ -19,5 +19,6 @@ L:Register('en', {
         placeholder = "Enter to send · / for a command · Esc to close",
         welcome = "Welcome, press T to chat, / for a command.",
         bind_description = "Toggle chat window",
+        clear_description = "Clear the chat window",
     },
 });

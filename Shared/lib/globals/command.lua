@@ -247,13 +247,4 @@ if (IS_CLIENT) then
         command.run(message);
         return false; -- a slash line never shows in the native chat
     end);
-
-    command({
-        name = 'clear',
-        description = 'Clears the chat window',
-        callback = function()
-            Console.Log("[command] clear: clearing chat window");
-            Chat.Clear();
-        end
-    });
 end

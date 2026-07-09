@@ -14,7 +14,7 @@ local client_commands <const> = {}; ---@type CommandData[]
 
 ---@class CommandArgument
 ---@field name string @The name of the argument
----@field type string @The type of the argument (e.g. "string", "number", "boolean")
+---@field type string @The type of the argument (e.g. "string", "number", "boolean", "merge")
 ---@field optional boolean @Whether the argument is optional (default: false)
 ---@field description string @The description of the argument (default: "")
 
@@ -69,6 +69,10 @@ local function parse_arguments(command_name, arguments, args)
                     error(("Invalid rotator format for argument '%s' in command '%s'. Expected format: pitch,yaw,roll"):format(argument.name, command_name));
                 end
                 parsed_args[argument.name] = Rotator(tonumber(rotator_parts[1]), tonumber(rotator_parts[2]), tonumber(rotator_parts[3]));
+            elseif (argument.type == "merge") then
+                local merged_value <const> = table.concat(args, " ", i);
+                parsed_args[argument.name] = merged_value;
+                break; -- No more arguments to parse after a merge
             else
                 error(("Unknown argument type '%s' for argument '%s' in command '%s'"):format(argument.type, argument.name, command_name));
             end
@@ -111,13 +115,15 @@ end
 ---@param description string? The command description to display in the console (Default: "")
 ---@param parameters CommandArgument[]? The list of command arguments (Default: {})
 ---@param client boolean? Whether the command callback runs locally on the client (Default: false)
+---@param server_only boolean? Keep the command server-side only, not advertised to clients (Default: false)
 ---@return void
-local function register_command(name, callback, description, parameters, client)
+local function register_command(name, callback, description, parameters, client, server_only)
     local command <const> = {
         name = name,
         description = description or "",
         parameters = parameters or {},
-        client = client or false
+        client = client or false,
+        server_only = server_only or false
     };
     registered_commands[name] = command;
     local command_callback <const> = make_command_callback(name, callback, client);
@@ -145,7 +151,8 @@ end
 command = setmetatable({}, {
     __name = "CommandLib",
     __call = function(_, data)
-        return register_command(data.name, data.callback, data.description, data.parameters, IS_CLIENT);
+        return register_command(data.name, data.callback, data.description,
+            data.parameters, IS_CLIENT, data.server_only);
     end,
 });
 
